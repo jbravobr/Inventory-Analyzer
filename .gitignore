@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambientes virtuais
+venv/
+.env/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Saídas e dados gerados
+output/
+cache/
+data/
+*.log
+
+# IDEs / SO
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Testes / cache ferramentas
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/

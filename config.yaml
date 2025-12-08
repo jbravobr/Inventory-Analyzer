@@ -1,0 +1,151 @@
+# ============================================
+# Inventory Analyzer - Configuração OFFLINE
+# ============================================
+# Analisador de Escrituras de Inventário
+# Versão: 1.0.0-offline
+# ============================================
+
+# Configurações gerais
+app:
+  name: "Inventory Analyzer (Offline)"
+  version: "1.0.0-offline"
+  language: "pt-BR"
+  log_level: "INFO"
+
+# Configurações do Tesseract OCR
+ocr:
+  tesseract_path: "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+  language: "por"  # Português
+  dpi: 300
+  config: "--psm 3 --oem 3"
+
+# Configurações de NLP
+nlp:
+  mode: "local"
+  
+  local:
+    spacy_model: "pt_core_news_lg"
+    sentence_transformer: "./models/embeddings/models--neuralmind--bert-base-portuguese-cased/snapshots/94d69c95f98f7d5b2a8700c420230ae10def0baa"
+    similarity_threshold: 0.75
+  
+  cloud:
+    enabled: false
+
+# ============================================
+# Configurações RAG
+# ============================================
+rag:
+  enabled: true
+  
+  # Chunking otimizado para documentos jurídicos
+  chunking:
+    strategy: "recursive"
+    chunk_size: 400       # Chunks menores para documentos jurídicos
+    chunk_overlap: 100    # Maior sobreposição
+    min_chunk_size: 80
+  
+  # Embeddings OFFLINE
+  embeddings:
+    local_model: "./models/embeddings/models--neuralmind--bert-base-portuguese-cased/snapshots/94d69c95f98f7d5b2a8700c420230ae10def0baa"
+    cache_enabled: true
+    cache_path: "./cache/embeddings"
+  
+  # Vector Store
+  vector_store:
+    type: "faiss"
+    use_gpu: false
+    index_path: "./cache/index"
+  
+  # Retrieval otimizado
+  retrieval:
+    top_k: 10             # Mais contexto
+    min_score: 0.2        # Score mínimo baixo
+    use_reranking: true
+    use_hybrid_search: true
+    use_mmr: true
+    mmr_diversity: 0.3
+  
+  # Generation OFFLINE
+  generation:
+    mode: "local"
+    local_model: "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
+    generate_answers: false  # Desabilitado por padrão (usa apenas retrieval)
+    max_tokens: 500
+    temperature: 0.1
+
+# Validação de texto
+validation:
+  min_word_count: 10
+  min_sentence_coherence: 0.6
+  check_encoding: true
+  language_detection: true
+
+# Configurações de busca
+search:
+  use_semantic_search: true
+  use_keyword_search: true
+  combine_results: true
+  max_results: 50
+
+# Configurações de saída
+output:
+  default_dir: "./output"
+  highlight_colors:
+    heirs: [255, 255, 0]           # Amarelo
+    administrator: [0, 255, 0]     # Verde
+    btg_assets: [0, 191, 255]      # Azul claro
+    divisions: [255, 182, 193]     # Rosa
+  output_format: "png"
+
+# ============================================
+# Termos específicos para inventário
+# ============================================
+legal_terms:
+  document_types:
+    - "escritura pública de inventário"
+    - "inventário extrajudicial"
+    - "adjudicação"
+    - "partilha de bens"
+  
+  heir_keywords:
+    - "herdeiro"
+    - "herdeira"
+    - "sucessor"
+    - "meeiro"
+    - "cônjuge"
+    - "viúvo"
+    - "viúva"
+    - "filho"
+    - "filha"
+    - "neto"
+    - "neta"
+  
+  administrator_keywords:
+    - "inventariante"
+    - "nomeado inventariante"
+    - "exercerá as funções de inventariante"
+  
+  btg_keywords:
+    - "BTG"
+    - "BTG Pactual"
+    - "Banco BTG"
+  
+  asset_types:
+    - "conta corrente"
+    - "poupança"
+    - "CDB"
+    - "fundo de investimento"
+    - "ações"
+    - "títulos"
+    - "aplicações financeiras"
+  
+  division_keywords:
+    - "coube"
+    - "tocou"
+    - "partilha"
+    - "quinhão"
+    - "percentual"
+    - "fração"
+    - "meação"
+    - "legítima"
+

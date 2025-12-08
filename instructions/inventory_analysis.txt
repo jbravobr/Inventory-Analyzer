@@ -1,0 +1,46 @@
+# ============================================
+# INSTRUÇÕES PARA ANÁLISE DE ESCRITURA PÚBLICA
+# DE INVENTÁRIO E ADJUDICAÇÃO
+# ============================================
+# 
+# Documento: Escritura Pública de Inventário
+# Objetivo: Extrair informações sobre herdeiros,
+# inventariante, bens BTG e divisão patrimonial
+#
+# ============================================
+
+# CLÁUSULA A - IDENTIFICAÇÃO DOS HERDEIROS
+- Localizar e listar TODOS os herdeiros mencionados na escritura
+- Para cada herdeiro, identificar nome completo
+- Identificar o grau de parentesco com o falecido (cônjuge, filho, neto, etc)
+- Identificar CPF de cada herdeiro se disponível
+- Verificar se há herdeiros menores de idade e seus representantes legais
+
+# CLÁUSULA B - INVENTARIANTE NOMEADO
+- Identificar quem foi nomeado como INVENTARIANTE
+- Localizar o nome completo do inventariante
+- Identificar CPF do inventariante
+- Verificar se o inventariante é também herdeiro
+- Localizar data da nomeação se disponível
+
+# CLÁUSULA C - BENS COM MENÇÃO A BTG
+- Localizar TODOS os bens que mencionam "BTG" ou "BTG Pactual"
+- Identificar o tipo de cada bem (conta corrente, investimento, CDB, ações, fundos, etc)
+- Localizar o número da conta ou identificador do ativo
+- Identificar o valor de cada bem se mencionado
+- Verificar a agência ou unidade BTG se informada
+
+# CLÁUSULA D - DIVISÃO DOS BENS BTG ENTRE HERDEIROS
+- Para cada bem BTG encontrado, identificar como foi dividido
+- Localizar o percentual ou fração de cada herdeiro em cada bem
+- Identificar o valor correspondente a cada herdeiro
+- Verificar se há condições especiais de divisão (usufruto, nua-propriedade, etc)
+- Localizar cláusulas de comunicação ou incomunicabilidade
+
+# INFORMAÇÕES COMPLEMENTARES
+- Identificar o falecido (autor da herança)
+- Localizar data do óbito
+- Identificar o cartório que lavrou a escritura
+- Localizar número do livro e folhas da escritura
+- Identificar advogado responsável se mencionado
+
