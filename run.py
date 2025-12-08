@@ -1,15 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Inventory Analyzer - Analisador de Escrituras de Inventário
+Document Analyzer - Analisador de Documentos PDF
 
-Analisa documentos PDF de inventário para extrair:
-- Herdeiros
-- Inventariante
-- Bens BTG
-- Divisão patrimonial
+Suporta múltiplos perfis de análise:
 
-Gera relatório TXT e PDF com highlights coloridos.
+Perfil 'inventory' (Escritura de Inventário):
+  - Herdeiros
+  - Inventariante
+  - Bens BTG
+  - Divisão patrimonial
+
+Perfil 'meeting_minutes' (Ata de Reunião de Quotistas):
+  - Ativos envolvidos (ações, CRA, CRI, debêntures, cotas, CDB, etc.)
+  - Quantidade e valores dos ativos
+
+Gera relatório TXT e PDF com highlights coloridos (marca-texto).
+
+Uso:
+  python run.py analyze documento.pdf --profile inventory
+  python run.py analyze ata.pdf --profile meeting_minutes
+  python run.py profiles  # lista perfis disponíveis
 """
 
 import sys

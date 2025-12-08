@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-CLI principal do Inventory Analyzer.
+CLI principal do Document Analyzer.
+
+Suporta múltiplos perfis de análise:
+- inventory: Escritura Pública de Inventário
+- meeting_minutes: Ata de Reunião de Quotistas
 """
 
 import json
@@ -12,6 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -26,13 +31,40 @@ logger = logging.getLogger(__name__)
 
 console = Console()
 
+# Perfis disponíveis
+AVAILABLE_PROFILES = {
+    "inventory": {
+        "name": "Análise de Inventário",
+        "description": "Extrai herdeiros, inventariante, bens BTG e divisão patrimonial"
+    },
+    "meeting_minutes": {
+        "name": "Ata de Reunião de Quotistas",
+        "description": "Extrai ativos envolvidos e suas quantidades"
+    }
+}
 
-def print_banner():
+
+def get_active_profile() -> str:
+    """Obtém o perfil ativo da configuração."""
+    config_path = Path(__file__).parent.parent / "config.yaml"
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+                return config.get("analysis", {}).get("active_profile", "inventory")
+        except Exception:
+            pass
+    return "inventory"
+
+
+def print_banner(profile: str = "inventory"):
     """Exibe banner do aplicativo."""
-    banner = """
+    profile_info = AVAILABLE_PROFILES.get(profile, AVAILABLE_PROFILES["inventory"])
+    
+    banner = f"""
 ╔═══════════════════════════════════════════════════════════╗
-║       INVENTORY ANALYZER v1.0.0 - OFFLINE                 ║
-║   Análise de Escrituras de Inventário e Adjudicação       ║
+║       DOCUMENT ANALYZER v1.1.0 - OFFLINE                  ║
+║   {profile_info['name']:^51} ║
 ╚═══════════════════════════════════════════════════════════╝
 """
     console.print(banner, style="cyan")
@@ -48,26 +80,44 @@ def cli():
 @cli.command()
 @click.argument('pdf_path', type=click.Path(exists=True))
 @click.option('-o', '--output', default='./output', help='Diretório de saída')
+@click.option('-p', '--profile', default=None, 
+              type=click.Choice(['inventory', 'meeting_minutes']),
+              help='Perfil de análise (inventory ou meeting_minutes)')
+@click.option('-i', '--instructions', default=None, type=click.Path(exists=True),
+              help='Caminho para arquivo de instruções customizado')
 @click.option('--txt/--no-txt', default=True, help='Gerar relatório TXT')
 @click.option('--pdf/--no-pdf', default=True, help='Gerar PDF com highlights')
 @click.option('--json/--no-json', 'output_json', default=False, help='Gerar saída JSON')
 def analyze(
     pdf_path: str,
     output: str,
+    profile: Optional[str],
+    instructions: Optional[str],
     txt: bool,
     pdf: bool,
     output_json: bool
 ):
     """
-    Analisa uma escritura de inventário.
+    Analisa um documento PDF.
     
-    Extrai informações sobre herdeiros, inventariante, bens BTG e divisão.
+    Perfis disponíveis:
+    
+    - inventory: Escritura de Inventário (herdeiros, inventariante, bens BTG)
+    
+    - meeting_minutes: Ata de Reunião de Quotistas (ativos e quantidades)
+    
+    Exemplos:
+    
+        python run.py analyze documento.pdf --profile inventory
+    
+        python run.py analyze ata.pdf --profile meeting_minutes
+    
+        python run.py analyze doc.pdf -i ./minhas_instrucoes.txt
     """
-    print_banner()
+    # Determina o perfil a usar
+    active_profile = profile or get_active_profile()
     
-    from inventory.analyzer import InventoryAnalyzer
-    from inventory.report_generator import ReportGenerator
-    from inventory.pdf_highlighter import PDFHighlighter
+    print_banner(active_profile)
     
     pdf_path = Path(pdf_path)
     output_dir = Path(output)
@@ -77,15 +127,92 @@ def analyze(
     base_name = pdf_path.stem
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    console.print(f"\nAnalisando: [bold]{pdf_path.name}[/bold]\n")
+    console.print(f"\nAnalisando: [bold]{pdf_path.name}[/bold]")
+    console.print(f"Perfil: [cyan]{AVAILABLE_PROFILES[active_profile]['name']}[/cyan]\n")
+    
+    if instructions:
+        console.print(f"Instruções customizadas: [yellow]{instructions}[/yellow]\n")
+    
+    # Executa análise baseada no perfil
+    if active_profile == "meeting_minutes":
+        result = _analyze_meeting_minutes(pdf_path)
+        _print_meeting_minutes_summary(result)
+        
+        # Gera saídas
+        if txt:
+            from inventory.meeting_minutes_report import MeetingMinutesReportGenerator
+            txt_path = output_dir / f"{base_name}_relatorio_{timestamp}.txt"
+            report_gen = MeetingMinutesReportGenerator()
+            report_gen.generate(result, txt_path, pdf_path.name)
+            console.print(f"✓ Relatório TXT: [green]{txt_path}[/green]")
+        
+        if pdf:
+            from inventory.meeting_minutes_highlighter import MeetingMinutesPDFHighlighter
+            pdf_output = output_dir / f"{base_name}_destacado_{timestamp}.pdf"
+            highlighter = MeetingMinutesPDFHighlighter()
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("Gerando PDF com highlights...", total=None)
+                highlighter.generate_highlighted_pdf(pdf_path, result, pdf_output)
+            
+            console.print(f"✓ PDF com highlights: [green]{pdf_output}[/green]")
+        
+        if output_json:
+            json_path = output_dir / f"{base_name}_resultado_{timestamp}.json"
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
+            console.print(f"✓ Resultado JSON: [green]{json_path}[/green]")
+    
+    else:  # inventory (padrão)
+        result = _analyze_inventory(pdf_path)
+        _print_summary(result)
+        
+        # Gera saídas
+        if txt:
+            from inventory.report_generator import ReportGenerator
+            txt_path = output_dir / f"{base_name}_relatorio_{timestamp}.txt"
+            report_gen = ReportGenerator()
+            report_gen.generate(result, txt_path, pdf_path.name)
+            console.print(f"✓ Relatório TXT: [green]{txt_path}[/green]")
+        
+        if pdf:
+            from inventory.pdf_highlighter import PDFHighlighter
+            pdf_output = output_dir / f"{base_name}_destacado_{timestamp}.pdf"
+            highlighter = PDFHighlighter()
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("Gerando PDF com highlights...", total=None)
+                highlighter.generate_highlighted_pdf(pdf_path, result, pdf_output)
+            
+            console.print(f"✓ PDF com highlights: [green]{pdf_output}[/green]")
+        
+        if output_json:
+            json_path = output_dir / f"{base_name}_resultado_{timestamp}.json"
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
+            console.print(f"✓ Resultado JSON: [green]{json_path}[/green]")
+    
+    console.print(f"\n[bold green]Análise concluída em {result.processing_time:.2f}s[/bold green]")
+    console.print(f"Arquivos salvos em: [cyan]{output_dir}[/cyan]\n")
+
+
+def _analyze_inventory(pdf_path: Path):
+    """Executa análise de inventário."""
+    from inventory.analyzer import InventoryAnalyzer
     
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console
     ) as progress:
-        
-        # Análise
         task = progress.add_task("Processando documento...", total=None)
         
         analyzer = InventoryAnalyzer()
@@ -93,43 +220,82 @@ def analyze(
         
         progress.update(task, description="Análise concluída!")
     
-    # Exibe resumo
-    _print_summary(result)
+    return result
+
+
+def _analyze_meeting_minutes(pdf_path: Path):
+    """Executa análise de ata de reunião."""
+    from inventory.meeting_minutes_analyzer import MeetingMinutesAnalyzer
     
-    # Gera saídas
-    outputs = []
-    
-    if txt:
-        txt_path = output_dir / f"{base_name}_relatorio_{timestamp}.txt"
-        report_gen = ReportGenerator()
-        report_gen.generate(result, txt_path, pdf_path.name)
-        outputs.append(("Relatório TXT", txt_path))
-        console.print(f"✓ Relatório TXT: [green]{txt_path}[/green]")
-    
-    if pdf:
-        pdf_output = output_dir / f"{base_name}_destacado_{timestamp}.pdf"
-        highlighter = PDFHighlighter()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+    ) as progress:
+        task = progress.add_task("Processando documento...", total=None)
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
-        ) as progress:
-            task = progress.add_task("Gerando PDF com highlights...", total=None)
-            highlighter.generate_highlighted_pdf(pdf_path, result, pdf_output)
+        analyzer = MeetingMinutesAnalyzer()
+        result = analyzer.analyze(pdf_path)
         
-        outputs.append(("PDF Destacado", pdf_output))
-        console.print(f"✓ PDF com highlights: [green]{pdf_output}[/green]")
+        progress.update(task, description="Análise concluída!")
     
-    if output_json:
-        json_path = output_dir / f"{base_name}_resultado_{timestamp}.json"
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-        outputs.append(("JSON", json_path))
-        console.print(f"✓ Resultado JSON: [green]{json_path}[/green]")
+    return result
+
+
+def _print_meeting_minutes_summary(result):
+    """Exibe resumo da análise de ata de reunião."""
+    from typing import Dict, List
     
-    console.print(f"\n[bold green]Análise concluída em {result.processing_time:.2f}s[/bold green]")
-    console.print(f"Arquivos salvos em: [cyan]{output_dir}[/cyan]\n")
+    # Tabela de resumo
+    table = Table(title="Resumo da Análise - Ata de Reunião", show_header=True)
+    table.add_column("Seção", style="cyan")
+    table.add_column("Resultado", style="green")
+    table.add_column("Confiança", style="yellow")
+    
+    # Info do Fundo
+    fund_info = result.fund_name or "Não identificado"
+    if result.meeting_date:
+        fund_info += f"\nData: {result.meeting_date}"
+    
+    table.add_row(
+        "Fundo",
+        fund_info,
+        "-"
+    )
+    
+    # Cláusula A - Ativos
+    assets_result = f"{len(result.assets)} ativo(s)"
+    if result.assets:
+        # Agrupa por tipo
+        by_type: Dict[str, int] = {}
+        for asset in result.assets:
+            t = asset.asset_type or "Outros"
+            by_type[t] = by_type.get(t, 0) + 1
+        
+        assets_result += "\n" + "\n".join([f"  • {t}: {c}" for t, c in list(by_type.items())[:4]])
+    
+    table.add_row(
+        "A) Ativos",
+        assets_result,
+        f"{result.confidence_scores.get('assets', 0)*100:.0f}%"
+    )
+    
+    # Cláusula B - Quantidades
+    qty_result = f"{len(result.asset_quantities)} quantidade(s)"
+    if result.asset_quantities:
+        total_value = sum(q.total_value for q in result.asset_quantities if q.total_value)
+        if total_value > 0:
+            qty_result += f"\nValor total: R$ {total_value:,.2f}"
+    
+    table.add_row(
+        "B) Quantidades",
+        qty_result,
+        f"{result.confidence_scores.get('quantities', 0)*100:.0f}%"
+    )
+    
+    console.print()
+    console.print(table)
+    console.print()
 
 
 def _print_summary(result):
@@ -243,6 +409,42 @@ def extract(pdf_path: str, output: str):
 
 
 @cli.command()
+def profiles():
+    """Lista os perfis de análise disponíveis."""
+    print_banner()
+    
+    active = get_active_profile()
+    
+    console.print("\n[bold]Perfis de Análise Disponíveis:[/bold]\n")
+    
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Perfil", style="cyan")
+    table.add_column("Nome", style="green")
+    table.add_column("Descrição")
+    table.add_column("Status")
+    
+    for profile_id, profile_info in AVAILABLE_PROFILES.items():
+        status = "[bold green]ATIVO[/bold green]" if profile_id == active else ""
+        table.add_row(
+            profile_id,
+            profile_info["name"],
+            profile_info["description"],
+            status
+        )
+    
+    console.print(table)
+    console.print()
+    
+    console.print("[bold]Como usar:[/bold]")
+    console.print("  python run.py analyze documento.pdf --profile inventory")
+    console.print("  python run.py analyze documento.pdf --profile meeting_minutes")
+    console.print()
+    console.print("[bold]Para mudar o perfil padrão:[/bold]")
+    console.print("  Edite o arquivo [cyan]config.yaml[/cyan] e altere [yellow]analysis.active_profile[/yellow]")
+    console.print()
+
+
+@cli.command()
 def info():
     """Exibe informações sobre a configuração atual."""
     print_banner()
@@ -250,11 +452,13 @@ def info():
     from config.settings import get_settings
     
     settings = get_settings()
+    active_profile = get_active_profile()
     
     table = Table(title="Configuração Atual", show_header=True)
     table.add_column("Parâmetro", style="cyan")
     table.add_column("Valor", style="green")
     
+    table.add_row("Perfil Ativo", active_profile)
     table.add_row("Modo NLP", settings.nlp.mode)
     table.add_row("Tesseract", settings.ocr.tesseract_path)
     table.add_row("Idioma OCR", settings.ocr.language)

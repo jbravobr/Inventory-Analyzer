@@ -1,16 +1,43 @@
 # ============================================
-# Inventory Analyzer - Configuração OFFLINE
+# Document Analyzer - Configuração OFFLINE
 # ============================================
-# Analisador de Escrituras de Inventário
-# Versão: 1.0.0-offline
+# Analisador de Documentos Jurídicos/Financeiros
+# Versão: 1.1.0-offline
 # ============================================
 
 # Configurações gerais
 app:
-  name: "Inventory Analyzer (Offline)"
-  version: "1.0.0-offline"
+  name: "Document Analyzer (Offline)"
+  version: "1.1.0-offline"
   language: "pt-BR"
   log_level: "INFO"
+
+# ============================================
+# Perfis de Análise Disponíveis
+# ============================================
+# Defina qual perfil de análise usar:
+# - inventory: Escritura Pública de Inventário
+# - meeting_minutes: Ata de Reunião de Quotistas
+analysis:
+  # Perfil ativo (pode ser sobrescrito via CLI)
+  active_profile: "inventory"
+  
+  # Diretório de instruções
+  instructions_dir: "./instructions"
+  
+  # Definição dos perfis
+  profiles:
+    inventory:
+      name: "Análise de Inventário"
+      description: "Extrai herdeiros, inventariante, bens BTG e divisão patrimonial"
+      instructions_file: "inventory_analysis.txt"
+      analyzer_class: "InventoryAnalyzer"
+      
+    meeting_minutes:
+      name: "Ata de Reunião de Quotistas"
+      description: "Extrai ativos envolvidos e suas quantidades"
+      instructions_file: "meeting_minutes_analysis.txt"
+      analyzer_class: "MeetingMinutesAnalyzer"
 
 # Configurações do Tesseract OCR
 ocr:
@@ -148,4 +175,65 @@ legal_terms:
     - "fração"
     - "meação"
     - "legítima"
+
+# ============================================
+# Termos específicos para Ata de Reunião
+# ============================================
+meeting_terms:
+  document_types:
+    - "ata de reunião"
+    - "ata de assembleia"
+    - "assembleia de quotistas"
+    - "assembleia de cotistas"
+    - "reunião de quotistas"
+  
+  asset_keywords:
+    - "ações"
+    - "ação"
+    - "CRA"
+    - "CRI"
+    - "debênture"
+    - "debêntures"
+    - "cotas"
+    - "cota"
+    - "CDB"
+    - "LCI"
+    - "LCA"
+    - "FII"
+    - "FIM"
+    - "FIC"
+    - "ETF"
+    - "título"
+    - "títulos"
+    - "Tesouro"
+    - "NTN"
+    - "LFT"
+    - "LTN"
+    - "valor mobiliário"
+    - "valores mobiliários"
+  
+  quantity_keywords:
+    - "quantidade"
+    - "volume"
+    - "número de"
+    - "total de"
+    - "unidades"
+    - "valor nominal"
+    - "valor de face"
+    - "valor total"
+    - "preço unitário"
+    - "distribuição"
+    - "emissão"
+  
+  entity_keywords:
+    - "fundo"
+    - "administrador"
+    - "gestor"
+    - "custodiante"
+    - "CNPJ"
+    - "quotista"
+    - "cotista"
+    - "emissora"
+    - "série"
+    - "classe"
 

@@ -1,10 +1,12 @@
-# Inventory Analyzer - Versão OFFLINE 📴
+# Document Analyzer - Versão OFFLINE 📴
 
-Analisador de **Escrituras Públicas de Inventário e Adjudicação** para ambientes corporativos restritos.
+Analisador de documentos PDF para ambientes corporativos restritos, com suporte a **múltiplos perfis de análise**.
 
-## 🎯 O que este sistema faz
+## 🎯 Perfis de Análise Disponíveis
 
-Analisa documentos PDF de inventário e extrai automaticamente:
+### 📜 Perfil: `inventory` - Escritura de Inventário
+
+Analisa escrituras públicas de inventário e extrai:
 
 | Cláusula | Informação Extraída | Cor no PDF |
 |----------|---------------------|------------|
@@ -12,6 +14,17 @@ Analisa documentos PDF de inventário e extrai automaticamente:
 | **B** | Inventariante nomeado | 🟢 Verde |
 | **C** | Bens com menção a BTG | 🔵 Azul |
 | **D** | Divisão dos bens BTG entre herdeiros | 🩷 Rosa |
+
+### 📋 Perfil: `meeting_minutes` - Ata de Reunião de Quotistas
+
+Analisa atas de reunião e assembleias para extrair:
+
+| Cláusula | Informação Extraída | Cor no PDF |
+|----------|---------------------|------------|
+| **A** | Ativos (ações, CRA, CRI, debêntures, cotas, CDB, etc.) | 🟠 Laranja |
+| **B** | Quantidades e valores dos ativos | 🔵 Azul |
+| - | Informações do fundo | 🟢 Verde |
+| - | Deliberações | 🩷 Rosa |
 
 ## 📤 Saídas Geradas
 
@@ -90,34 +103,61 @@ Depois disso, utilize os comandos descritos na seção **📖 Uso** para rodar a
 
 ## 📖 Uso
 
-### Análise Completa (TXT + PDF destacado)
+### Análise de Escritura de Inventário (perfil padrão)
 
 ```powershell
 python run.py analyze escritura_inventario.pdf
 ```
 
+### Análise de Ata de Reunião de Quotistas
+
+```powershell
+python run.py analyze ata_reuniao.pdf --profile meeting_minutes
+```
+
+ou usando a forma curta:
+
+```powershell
+python run.py analyze ata_reuniao.pdf -p meeting_minutes
+```
+
 ### Com diretório de saída específico
 
 ```powershell
-python run.py analyze escritura_inventario.pdf -o C:\Resultados
+python run.py analyze documento.pdf -o C:\Resultados
 ```
 
 ### Gerar também JSON
 
 ```powershell
-python run.py analyze escritura_inventario.pdf --json
+python run.py analyze documento.pdf --json
 ```
 
 ### Apenas extrair texto (sem análise)
 
 ```powershell
-python run.py extract escritura_inventario.pdf
+python run.py extract documento.pdf
+```
+
+### Listar perfis disponíveis
+
+```powershell
+python run.py profiles
 ```
 
 ### Ver configurações
 
 ```powershell
 python run.py info
+```
+
+### Mudar perfil padrão
+
+Edite o arquivo `config.yaml` e altere:
+
+```yaml
+analysis:
+  active_profile: "meeting_minutes"  # ou "inventory"
 ```
 
 ## 📁 Estrutura de Saída
@@ -210,12 +250,21 @@ CLÁUSULA D - DIVISÃO DOS BENS BTG ENTRE HERDEIROS
 
 ## 🎨 Legenda do PDF Destacado
 
-O PDF gerado inclui uma página inicial com legenda e resumo, seguida do documento original com destaques:
+O PDF gerado inclui uma página inicial com legenda e resumo, seguida do documento original com destaques.
+
+### Perfil `inventory` (Inventário)
 
 - **🟡 Amarelo**: Nomes dos herdeiros
 - **🟢 Verde**: Nome do inventariante
 - **🔵 Azul**: Menções a "BTG" e números de conta
 - **🩷 Rosa**: Percentuais de divisão
+
+### Perfil `meeting_minutes` (Ata de Reunião)
+
+- **🟠 Laranja**: Ativos identificados (CRA, CRI, debêntures, ações, cotas, etc.)
+- **🔵 Azul**: Quantidades e valores monetários (R$)
+- **🟢 Verde**: Informações do fundo (nome, CNPJ)
+- **🩷 Rosa**: Deliberações
 
 ## ⚙️ Configuração
 

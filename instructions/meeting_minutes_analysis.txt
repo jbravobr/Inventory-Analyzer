@@ -1,0 +1,46 @@
+# ============================================
+# INSTRUÇÕES PARA ANÁLISE DE ATA DE REUNIÃO
+# DE QUOTISTAS / ASSEMBLEIA
+# ============================================
+# 
+# Documento: Ata de Reunião de Quotistas
+# Objetivo: Extrair informações sobre ativos
+# envolvidos e suas respectivas quantidades
+#
+# ============================================
+
+# CLÁUSULA A - IDENTIFICAÇÃO DOS ATIVOS ENVOLVIDOS
+- Localizar e listar TODOS os ativos mencionados na ata
+- Identificar AÇÕES mencionadas (ticker, empresa emissora)
+- Identificar CRA (Certificado de Recebíveis do Agronegócio)
+- Identificar CRI (Certificado de Recebíveis Imobiliários)
+- Identificar DEBÊNTURES mencionadas (série, emissora)
+- Identificar COTAS DE FUNDO (FII, FIM, FIC, ETF)
+- Identificar CDB (Certificado de Depósito Bancário)
+- Identificar LCI (Letra de Crédito Imobiliário)
+- Identificar LCA (Letra de Crédito do Agronegócio)
+- Identificar TÍTULOS PÚBLICOS (Tesouro Direto, NTN, LFT, LTN)
+- Localizar outros valores mobiliários mencionados
+- Para cada ativo, identificar o código/ticker se disponível
+- Verificar a instituição emissora ou custodiante
+
+# CLÁUSULA B - QUANTIDADE E VALORES DOS ATIVOS
+- Localizar a QUANTIDADE de cada ativo mencionado
+- Identificar o número total de ações
+- Identificar o volume total de cada valor mobiliário
+- Localizar o valor nominal ou de face dos títulos
+- Identificar o valor total a ser distribuído/emitido
+- Verificar preço unitário se mencionado
+- Localizar data de emissão e vencimento quando aplicável
+- Identificar série e classe dos ativos se informado
+
+# INFORMAÇÕES COMPLEMENTARES
+- Identificar o nome do fundo ou veículo de investimento
+- Localizar CNPJ do fundo se disponível
+- Identificar o administrador ou gestor
+- Localizar data da reunião/assembleia
+- Identificar os quotistas participantes se mencionados
+- Localizar deliberações aprovadas
+- Identificar votação (quorum, aprovação)
+
+
