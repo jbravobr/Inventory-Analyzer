@@ -26,63 +26,67 @@ Analisa documentos PDF de inventário e extrai automaticamente:
 | Python | 3.14+ | Já instalado pela TI |
 | Tesseract OCR | 5.x | Já instalado pela TI |
 | PowerShell | 5.1+ | Nativo do Windows |
-| Git + Git LFS | Última | Necessário para clonar com modelos e wheels |
+| (Opcional) Git + Git LFS | Última | Apenas para quem for clonar o repositório completo |
 
 ## 🚀 Instalação
 
-### 0. Instalar Git LFS (apenas uma vez por máquina)
+### Opção A – Instalação via pacote ZIP de Assets (recomendada para uso offline)
 
-1. Instale **Git** normalmente.
-2. Instale **Git LFS** (via instalador oficial ou gerenciador de pacotes).
-3. Em um terminal (PowerShell ou Git Bash), execute:
+Esta é a forma mais simples para o usuário final, sem necessidade de Git ou Git LFS.
 
-```bash
-git lfs install
-```
+1. Acesse a página de **Releases** do projeto no GitHub.
+2. Baixe o arquivo ZIP de assets, por exemplo:  
+   `inventory_analyzer_offline_assets.zip`.
+3. Extraia o conteúdo do ZIP para uma pasta, por exemplo:  
+   `C:\inventory_analyzer_offline`.
+4. Abra o **PowerShell** ou **Prompt de Comando** nesta pasta.
+5. Execute o instalador offline:
+   - PowerShell (se scripts estiverem liberados):
+     ```powershell
+     .\install_offline.ps1
+     ```
+   - Prompt de Comando (alternativa em ambientes com restrição a scripts PowerShell):
+     ```bat
+     install_offline.cmd
+     ```
+6. Após a instalação, ative o ambiente virtual:
+   - PowerShell:
+     ```powershell
+     .\activate_env.ps1
+     ```
+   - Prompt de Comando:
+     ```bat
+     call venv\Scripts\activate.bat
+     ```
 
-### 1. Clonar o repositório com LFS
+Depois disso, utilize os comandos descritos na seção **📖 Uso** para rodar as análises.
 
-```bash
-git clone https://github.com/jbravobr/Inventory-Analyzer.git
-cd Inventory-Analyzer
-```
+### Opção B – Clonar o repositório via Git + Git LFS (para times de desenvolvimento)
 
-> Observação: se o Git LFS estiver instalado, os arquivos grandes (`wheels/`, `models/`, `bin/` etc.) serão baixados automaticamente.  
-> Só em caso de dúvida, rode também:
->
-> ```bash
-> git lfs pull
-> ```
-
-### 2. Executar o instalador offline
-
-#### 2.1. Via PowerShell (`.ps1`) – se scripts estiverem liberados
-
-```powershell
-.\install_offline.ps1
-```
-
-#### 2.2. Via Prompt de Comando (`.cmd`) – alternativa para ambientes com restrição a scripts
-
-```bat
-install_offline.cmd
-```
-
-### 3. Ativar o ambiente virtual
-
-No PowerShell:
-
-```powershell
-.\activate_env.ps1
-```
-
-Ou no Prompt de Comando:
-
-```bat
-call venv\Scripts\activate.bat
-```
-
-Depois disso, siga para a seção **📖 Uso** abaixo.
+1. Instale **Git** e **Git LFS** e execute:
+   ```bash
+   git lfs install
+   ```
+2. Clone o repositório:
+   ```bash
+   git clone https://github.com/jbravobr/Inventory-Analyzer.git
+   cd Inventory-Analyzer
+   git lfs pull   # normalmente automático, por garantia
+   ```
+3. Execute o instalador offline:
+   ```powershell
+   .\install_offline.ps1
+   # ou
+   install_offline.cmd
+   ```
+4. Ative o ambiente virtual:
+   ```powershell
+   .\activate_env.ps1
+   ```
+   ou
+   ```bat
+   call venv\Scripts\activate.bat
+   ```
 
 ## 📖 Uso
 
