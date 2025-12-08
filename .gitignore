@@ -33,3 +33,7 @@ Desktop.ini
 .nox/
 .pytest_cache/
 .mypy_cache/
+
+# Arquivos de texto e documentos
+*.pdf
+*.docx
