@@ -18,7 +18,7 @@ import pickle
 
 import numpy as np
 
-from ..config.settings import Settings, get_settings
+from config.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 

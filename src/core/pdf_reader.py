@@ -11,8 +11,8 @@ from pdf2image import convert_from_path
 from PIL import Image
 import PyPDF2
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document, Page, PageImage
+from config.settings import Settings, get_settings
+from models.document import Document, Page, PageImage
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from ..config.settings import Settings, get_settings
+from config.settings import Settings, get_settings
 from .base_processor import BaseNLPProcessor
 
 logger = logging.getLogger(__name__)

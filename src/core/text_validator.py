@@ -8,9 +8,9 @@ import unicodedata
 from collections import Counter
 from typing import List, Optional, Tuple
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document
-from ..models.extraction_result import (
+from config.settings import Settings, get_settings
+from models.document import Document
+from models.extraction_result import (
     ValidationResult,
     ValidationMetrics,
     ValidationStatus,

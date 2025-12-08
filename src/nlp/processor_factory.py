@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from ..config.settings import Settings, get_settings
+from config.settings import Settings, get_settings
 from .base_processor import BaseNLPProcessor
 from .local_processor import LocalNLPProcessor
 from .cloud_processor import CloudNLPProcessor

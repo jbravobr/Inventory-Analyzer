@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Tuple
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document, Page
+from config.settings import Settings, get_settings
+from models.document import Document, Page
 
 logger = logging.getLogger(__name__)
 

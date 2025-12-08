@@ -204,9 +204,33 @@ def analyze(
     console.print(f"Arquivos salvos em: [cyan]{output_dir}[/cyan]\n")
 
 
+def _create_rag_config():
+    """Cria RAGConfig baseado nas configurações do arquivo YAML."""
+    from config.settings import get_settings
+    from rag.rag_pipeline import RAGConfig
+    
+    settings = get_settings()
+    
+    # Obtém configuração de geração do arquivo YAML
+    generate_answers = False
+    if hasattr(settings, 'rag') and hasattr(settings.rag, 'generation'):
+        generate_answers = settings.rag.generation.generate_answers
+    
+    return RAGConfig(
+        mode="local",
+        chunk_size=400,
+        chunk_overlap=100,
+        top_k=10,
+        use_hybrid_search=True,
+        generate_answers=generate_answers
+    )
+
+
 def _analyze_inventory(pdf_path: Path):
     """Executa análise de inventário."""
     from inventory.analyzer import InventoryAnalyzer
+    
+    config = _create_rag_config()
     
     with Progress(
         SpinnerColumn(),
@@ -215,7 +239,7 @@ def _analyze_inventory(pdf_path: Path):
     ) as progress:
         task = progress.add_task("Processando documento...", total=None)
         
-        analyzer = InventoryAnalyzer()
+        analyzer = InventoryAnalyzer(config=config)
         result = analyzer.analyze(pdf_path)
         
         progress.update(task, description="Análise concluída!")
@@ -227,6 +251,8 @@ def _analyze_meeting_minutes(pdf_path: Path):
     """Executa análise de ata de reunião."""
     from inventory.meeting_minutes_analyzer import MeetingMinutesAnalyzer
     
+    config = _create_rag_config()
+    
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -234,7 +260,7 @@ def _analyze_meeting_minutes(pdf_path: Path):
     ) as progress:
         task = progress.add_task("Processando documento...", total=None)
         
-        analyzer = MeetingMinutesAnalyzer()
+        analyzer = MeetingMinutesAnalyzer(config=config)
         result = analyzer.analyze(pdf_path)
         
         progress.update(task, description="Análise concluída!")

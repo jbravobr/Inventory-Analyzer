@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 
-from ..config.settings import Settings
+from config.settings import Settings
 
 
 class BaseNLPProcessor(ABC):

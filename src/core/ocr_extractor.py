@@ -13,9 +13,9 @@ import numpy as np
 import pytesseract
 from PIL import Image
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document, Page
-from ..models.extraction_result import ExtractionResult
+from config.settings import Settings, get_settings
+from models.document import Document, Page
+from models.extraction_result import ExtractionResult
 
 logger = logging.getLogger(__name__)
 

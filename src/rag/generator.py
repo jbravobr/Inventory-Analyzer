@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 
-from ..config.settings import Settings, get_settings
+from config.settings import Settings, get_settings
 from .retriever import RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -156,7 +156,11 @@ class LocalGenerator(ResponseGenerator):
         super().__init__(settings)
         self._model = None
         self._tokenizer = None
-        self._model_name = model_name or "pierreguillou/gpt2-small-portuguese"
+        # Usa modelo local do settings se disponível
+        default_model = "pierreguillou/gpt2-small-portuguese"
+        if settings and hasattr(settings, 'rag') and settings.rag.generation.local_model:
+            default_model = settings.rag.generation.local_model
+        self._model_name = model_name or default_model
     
     def initialize(self) -> None:
         """Inicializa modelo local."""
@@ -168,8 +172,15 @@ class LocalGenerator(ResponseGenerator):
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
             
-            self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
-            self._model = AutoModelForCausalLM.from_pretrained(self._model_name)
+            # Usa local_files_only para evitar downloads
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                self._model_name, 
+                local_files_only=True
+            )
+            self._model = AutoModelForCausalLM.from_pretrained(
+                self._model_name,
+                local_files_only=True
+            )
             
             # Configura padding token
             if self._tokenizer.pad_token is None:
@@ -193,26 +204,27 @@ class LocalGenerator(ResponseGenerator):
         """Gera resposta usando modelo local."""
         self.ensure_initialized()
         
-        # Limita contexto para não exceder limite do modelo
-        max_context = 1500
-        if len(context) > max_context:
-            context = context[:max_context] + "..."
+        # Limita contexto para não exceder limite do modelo GPT-2 (1024 tokens)
+        # Reserva ~200 tokens para query + prompt, ~100 para resposta
+        max_context_chars = 600  # ~150-200 tokens
+        if len(context) > max_context_chars:
+            context = context[:max_context_chars] + "..."
         
         # Monta prompt
         prompt = self._build_prompt(query, context, system_prompt)
         
-        # Tokeniza
+        # Tokeniza com truncação segura para GPT-2
         inputs = self._tokenizer(
             prompt,
             return_tensors="pt",
             truncation=True,
-            max_length=2048
+            max_length=800  # Deixa margem para geração
         )
         
         # Gera
         outputs = self._model.generate(
             **inputs,
-            max_new_tokens=500,
+            max_new_tokens=150,  # Limita tokens gerados
             temperature=0.7,
             do_sample=True,
             pad_token_id=self._tokenizer.pad_token_id

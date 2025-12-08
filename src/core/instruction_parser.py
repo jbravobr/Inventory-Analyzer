@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Set
 
-from ..config.settings import Settings, get_settings
+from config.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 

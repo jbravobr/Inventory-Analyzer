@@ -8,16 +8,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from ..config.settings import Settings, get_settings
-from ..core.pdf_reader import PDFReader
-from ..core.ocr_extractor import OCRExtractor
-from ..core.text_validator import TextValidator
-from ..core.instruction_parser import InstructionParser, ParsedInstructions
-from ..core.text_searcher import TextSearcher
-from ..core.output_generator import OutputGenerator
-from ..models.document import Document
-from ..models.extraction_result import ExtractionResult, ValidationResult
-from ..models.search_result import SearchResult
+from config.settings import Settings, get_settings
+from core.pdf_reader import PDFReader
+from core.ocr_extractor import OCRExtractor
+from core.text_validator import TextValidator
+from core.instruction_parser import InstructionParser, ParsedInstructions
+from core.text_searcher import TextSearcher
+from core.output_generator import OutputGenerator
+from models.document import Document
+from models.extraction_result import ExtractionResult, ValidationResult
+from models.search_result import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +259,7 @@ class Pipeline:
             SearchResult: Resultado da busca.
         """
         # Cria documento fake com o texto
-        from ..models.document import Document, Page
+        from models.document import Document, Page
         
         document = Document(source_path=Path("memory"))
         document.add_page(Page(number=1, text=text))

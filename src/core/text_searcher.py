@@ -7,16 +7,16 @@ import re
 import time
 from typing import List, Optional, Tuple
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document
-from ..models.search_result import (
+from config.settings import Settings, get_settings
+from models.document import Document
+from models.search_result import (
     SearchResult,
     SearchMatch,
     InstructionMatch,
     TextPosition,
 )
-from ..nlp.base_processor import BaseNLPProcessor
-from ..nlp.processor_factory import get_nlp_processor
+from nlp.base_processor import BaseNLPProcessor
+from nlp.processor_factory import get_nlp_processor
 from .instruction_parser import Instruction, ParsedInstructions
 
 logger = logging.getLogger(__name__)

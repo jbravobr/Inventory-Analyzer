@@ -12,9 +12,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
-from ..rag.rag_pipeline import RAGPipeline, RAGConfig
-from ..core.pdf_reader import PDFReader
-from ..core.ocr_extractor import OCRExtractor
+from rag.rag_pipeline import RAGPipeline, RAGConfig
+from core.pdf_reader import PDFReader
+from core.ocr_extractor import OCRExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,8 @@ class MeetingMinutesAnalyzer:
             chunk_size=400,
             chunk_overlap=100,
             top_k=10,
-            use_hybrid_search=True
+            use_hybrid_search=True,
+            generate_answers=False  # Usa apenas retrieval por padrão
         )
         self.rag = RAGPipeline(self.config)
         self.reader = PDFReader()
@@ -232,8 +233,8 @@ class MeetingMinutesAnalyzer:
         
         for query in queries:
             response = self.rag.query(query)
-            if response.chunks:
-                for chunk in response.chunks:
+            if response.retrieval_result and response.retrieval_result.chunks:
+                for chunk in response.retrieval_result.chunks:
                     all_contexts.append(chunk.text)
                     all_pages.add(chunk.page_number)
         
@@ -261,8 +262,8 @@ class MeetingMinutesAnalyzer:
         
         for query in queries:
             response = self.rag.query(query)
-            if response.chunks:
-                for chunk in response.chunks:
+            if response.retrieval_result and response.retrieval_result.chunks:
+                for chunk in response.retrieval_result.chunks:
                     all_contexts.append(chunk.text)
                     all_pages.add(chunk.page_number)
         
@@ -282,8 +283,8 @@ class MeetingMinutesAnalyzer:
         
         # Busca nome do fundo
         response = self.rag.query("Qual o nome do fundo ou veículo de investimento?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             patterns = [
                 r"(?:fundo|fii|fim)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+)",
                 r"([A-Z][A-Z\s]+(?:FII|FIM|FIC|FUNDO)[A-Z\s]*)"
@@ -296,8 +297,8 @@ class MeetingMinutesAnalyzer:
         
         # Busca CNPJ
         response = self.rag.query("Qual o CNPJ do fundo?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             cnpj_pattern = r"\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2}"
             match = re.search(cnpj_pattern, text)
             if match:
@@ -305,8 +306,8 @@ class MeetingMinutesAnalyzer:
         
         # Busca administrador
         response = self.rag.query("Qual o administrador do fundo?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             patterns = [
                 r"administrad[oa][:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+)",
                 r"administração[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+)"
@@ -319,8 +320,8 @@ class MeetingMinutesAnalyzer:
         
         # Busca data da reunião
         response = self.rag.query("Qual a data da reunião ou assembleia?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             date_pattern = r"\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}"
             match = re.search(date_pattern, text)
             if match:
@@ -516,4 +517,5 @@ class MeetingMinutesAnalyzer:
             )
         
         return highlights
+
 

@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 
 import numpy as np
 
-from ..config.settings import Settings, get_settings
+from config.settings import Settings, get_settings
 from .chunker import Chunk
 from .vector_store import VectorStore, VectorSearchResult
 

@@ -11,9 +11,9 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document, Page
-from ..models.search_result import SearchResult, SearchMatch
+from config.settings import Settings, get_settings
+from models.document import Document, Page
+from models.search_result import SearchResult, SearchMatch
 
 logger = logging.getLogger(__name__)
 

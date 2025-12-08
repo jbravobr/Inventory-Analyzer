@@ -34,6 +34,7 @@ class LocalNLPConfig:
 class CloudNLPConfig:
     """Configurações do processador NLP em nuvem."""
     
+    enabled: bool = False
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     api_key_env: str = "OPENAI_API_KEY"
@@ -84,7 +85,9 @@ class SearchConfig:
 class OutputConfig:
     """Configurações de saída."""
     
+    default_dir: str = "./output"
     highlight_color: Tuple[int, int, int] = (255, 255, 0)
+    highlight_colors: Dict[str, List[int]] = field(default_factory=dict)
     highlight_opacity: float = 0.4
     output_format: str = "png"
     create_summary: bool = True
@@ -97,6 +100,31 @@ class LegalTermsConfig:
     contract_types: List[str] = field(default_factory=list)
     key_sections: List[str] = field(default_factory=list)
     parties: List[str] = field(default_factory=list)
+    document_types: List[str] = field(default_factory=list)
+    heir_keywords: List[str] = field(default_factory=list)
+    administrator_keywords: List[str] = field(default_factory=list)
+    btg_keywords: List[str] = field(default_factory=list)
+    asset_types: List[str] = field(default_factory=list)
+    division_keywords: List[str] = field(default_factory=list)
+
+
+@dataclass
+class RAGGenerationConfig:
+    """Configurações de geração RAG."""
+    
+    mode: str = "local"
+    local_model: str = "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
+    generate_answers: bool = False
+    max_tokens: int = 500
+    temperature: float = 0.1
+
+
+@dataclass
+class RAGConfig:
+    """Configurações do pipeline RAG."""
+    
+    enabled: bool = True
+    generation: RAGGenerationConfig = field(default_factory=RAGGenerationConfig)
 
 
 @dataclass
@@ -120,6 +148,7 @@ class Settings:
     search: SearchConfig = field(default_factory=SearchConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     legal_terms: LegalTermsConfig = field(default_factory=LegalTermsConfig)
+    rag: RAGConfig = field(default_factory=RAGConfig)
     
     @classmethod
     def from_yaml(cls, config_path: Path) -> "Settings":
@@ -164,6 +193,14 @@ class Settings:
         
         if "legal_terms" in data:
             settings.legal_terms = LegalTermsConfig(**data["legal_terms"])
+        
+        if "rag" in data:
+            rag_data = data["rag"]
+            generation_config = RAGGenerationConfig(**rag_data.get("generation", {}))
+            settings.rag = RAGConfig(
+                enabled=rag_data.get("enabled", True),
+                generation=generation_config
+            )
         
         return settings
     

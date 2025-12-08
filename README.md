@@ -282,6 +282,747 @@ rag:
     min_score: 0.15  # Menos restritivo
 ```
 
+---
+
+## 📚 Referência Completa do config.yaml
+
+Esta seção detalha **todas as configurações disponíveis** no arquivo `config.yaml`.
+
+### 🏷️ Seção `app` - Configurações Gerais
+
+```yaml
+app:
+  name: "Document Analyzer (Offline)"   # Nome da aplicação (exibido no banner)
+  version: "1.1.0-offline"              # Versão do software
+  language: "pt-BR"                     # Idioma da interface
+  log_level: "INFO"                     # Nível de log: DEBUG, INFO, WARNING, ERROR
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `name` | string | "Document Analyzer" | Nome exibido no banner de inicialização |
+| `version` | string | "1.1.0-offline" | Versão do software |
+| `language` | string | "pt-BR" | Idioma (afeta formatação de datas/números) |
+| `log_level` | string | "INFO" | Verbosidade dos logs: `DEBUG` (mais detalhado) → `ERROR` (apenas erros) |
+
+---
+
+### 📋 Seção `analysis` - Perfis de Análise
+
+```yaml
+analysis:
+  active_profile: "inventory"           # Perfil padrão quando não especificado via CLI
+  instructions_dir: "./instructions"    # Diretório com arquivos de instruções
+  
+  profiles:
+    inventory:
+      name: "Análise de Inventário"
+      description: "Extrai herdeiros, inventariante, bens BTG e divisão patrimonial"
+      instructions_file: "inventory_analysis.txt"
+      analyzer_class: "InventoryAnalyzer"
+      
+    meeting_minutes:
+      name: "Ata de Reunião de Quotistas"
+      description: "Extrai ativos envolvidos e suas quantidades"
+      instructions_file: "meeting_minutes_analysis.txt"
+      analyzer_class: "MeetingMinutesAnalyzer"
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `active_profile` | string | "inventory" | Perfil usado quando `-p` não é especificado |
+| `instructions_dir` | string | "./instructions" | Pasta com arquivos `.txt` de instruções |
+| `profiles.*.name` | string | - | Nome amigável do perfil |
+| `profiles.*.description` | string | - | Descrição do que o perfil extrai |
+| `profiles.*.instructions_file` | string | - | Arquivo de instruções (queries RAG) |
+| `profiles.*.analyzer_class` | string | - | Classe Python que implementa a análise |
+
+---
+
+### 🔍 Seção `ocr` - Configurações do Tesseract OCR
+
+```yaml
+ocr:
+  tesseract_path: "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+  language: "por"        # Código ISO do idioma
+  dpi: 300               # Resolução de conversão PDF → imagem
+  config: "--psm 3 --oem 3"
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `tesseract_path` | string | (caminho Windows) | Caminho completo para o executável do Tesseract |
+| `language` | string | "por" | Idioma do OCR: `por` (português), `eng` (inglês), `por+eng` (ambos) |
+| `dpi` | int | 300 | Resolução em DPI. **↑ Maior = melhor qualidade, mais lento** |
+| `config` | string | "--psm 3 --oem 3" | Parâmetros do Tesseract (ver tabela abaixo) |
+
+**Valores de PSM (Page Segmentation Mode):**
+| Valor | Descrição |
+|-------|-----------|
+| `--psm 1` | Segmentação automática com OSD |
+| `--psm 3` | Segmentação automática (padrão) |
+| `--psm 6` | Bloco de texto uniforme |
+| `--psm 11` | Texto esparso sem ordem |
+
+**Valores de OEM (OCR Engine Mode):**
+| Valor | Descrição |
+|-------|-----------|
+| `--oem 0` | Apenas motor legacy |
+| `--oem 1` | Apenas LSTM (neural) |
+| `--oem 3` | Ambos (padrão, mais preciso) |
+
+---
+
+### 🧠 Seção `nlp` - Processamento de Linguagem Natural
+
+```yaml
+nlp:
+  mode: "local"                    # "local" (offline) ou "cloud" (API)
+  
+  local:
+    spacy_model: "pt_core_news_lg"
+    sentence_transformer: "./models/embeddings/..."
+    similarity_threshold: 0.75
+  
+  cloud:
+    enabled: false                 # Desabilita chamadas à nuvem
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `mode` | string | "local" | `local` = 100% offline, `cloud` = usa APIs externas |
+| `local.spacy_model` | string | "pt_core_news_lg" | Modelo spaCy para NLP (tokenização, NER) |
+| `local.sentence_transformer` | string | (caminho) | Modelo de embeddings local |
+| `local.similarity_threshold` | float | 0.75 | Limiar de similaridade (0.0-1.0) |
+| `cloud.enabled` | bool | false | Se `true`, permite chamadas a APIs externas |
+
+---
+
+### 🔗 Seção `rag` - Pipeline RAG (Retrieval-Augmented Generation)
+
+Esta é a seção mais importante para tuning de performance e qualidade.
+
+#### Chunking (Divisão do Documento)
+
+```yaml
+rag:
+  enabled: true
+  
+  chunking:
+    strategy: "recursive"    # Estratégia de divisão
+    chunk_size: 400          # Tamanho máximo de cada chunk (caracteres)
+    chunk_overlap: 100       # Sobreposição entre chunks
+    min_chunk_size: 80       # Tamanho mínimo para um chunk válido
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `enabled` | bool | true | Habilita/desabilita o pipeline RAG |
+| `chunking.strategy` | string | "recursive" | `fixed_size`, `sentence`, `paragraph`, `recursive` |
+| `chunking.chunk_size` | int | 400 | **↓ Menor = mais preciso, mais chunks** |
+| `chunking.chunk_overlap` | int | 100 | Caracteres compartilhados entre chunks adjacentes |
+| `chunking.min_chunk_size` | int | 80 | Chunks menores são descartados |
+
+**Estratégias de Chunking:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ fixed_size   : Divide em blocos de tamanho fixo                 │
+│ sentence     : Divide por sentenças (pontuação)                 │
+│ paragraph    : Divide por parágrafos (quebras de linha)         │
+│ recursive    : Tenta dividir por parágrafos, depois sentenças,  │
+│                depois tamanho fixo (RECOMENDADO)                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Embeddings (Vetorização)
+
+```yaml
+  embeddings:
+    local_model: "./models/embeddings/..."   # Caminho do modelo BERT
+    cache_enabled: true                      # Cache de embeddings calculados
+    cache_path: "./cache/embeddings"         # Onde salvar o cache
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `local_model` | string | (caminho) | Modelo Sentence Transformer para embeddings |
+| `cache_enabled` | bool | true | Reutiliza embeddings já calculados |
+| `cache_path` | string | "./cache/embeddings" | Diretório do cache |
+
+#### Vector Store (Armazenamento de Vetores)
+
+```yaml
+  vector_store:
+    type: "faiss"            # Biblioteca de busca vetorial
+    use_gpu: false           # Aceleração por GPU (requer CUDA)
+    index_path: "./cache/index"
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `type` | string | "faiss" | `faiss` (Facebook AI) ou `simple` (em memória) |
+| `use_gpu` | bool | false | `true` requer NVIDIA CUDA instalado |
+| `index_path` | string | "./cache/index" | Onde salvar índices persistentes |
+
+#### Retrieval (Recuperação de Contexto)
+
+```yaml
+  retrieval:
+    top_k: 10                # Número de chunks a recuperar por query
+    min_score: 0.2           # Score mínimo de similaridade
+    use_reranking: true      # Re-ordenar resultados por relevância
+    use_hybrid_search: true  # Combinar busca semântica + keywords
+    use_mmr: true            # Maximal Marginal Relevance (diversidade)
+    mmr_diversity: 0.3       # Peso da diversidade (0.0-1.0)
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `top_k` | int | 10 | **↑ Maior = mais contexto, mais lento** |
+| `min_score` | float | 0.2 | Chunks com score menor são descartados (0.0-1.0) |
+| `use_reranking` | bool | true | Segunda passada para ordenar por relevância |
+| `use_hybrid_search` | bool | true | Combina busca vetorial + busca por palavras-chave |
+| `use_mmr` | bool | true | Evita chunks muito similares entre si |
+| `mmr_diversity` | float | 0.3 | 0.0 = só relevância, 1.0 = só diversidade |
+
+#### Generation (Geração de Respostas)
+
+```yaml
+  generation:
+    mode: "local"
+    local_model: "./models/generator/..."
+    generate_answers: false   # ⚠️ IMPORTANTE: true = usa LLM, false = só retrieval
+    max_tokens: 500
+    temperature: 0.1
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `mode` | string | "local" | `local` (GPT-2 offline) ou `cloud` (API) |
+| `local_model` | string | (caminho) | Caminho do modelo de linguagem local |
+| `generate_answers` | bool | **false** | `false` = **60% mais rápido**, mesmo resultado |
+| `max_tokens` | int | 500 | Limite de tokens na resposta gerada |
+| `temperature` | float | 0.1 | Criatividade: 0.0 = determinístico, 1.0 = criativo |
+
+> ⚡ **Dica de Performance**: Manter `generate_answers: false` é recomendado pois a extração de dados usa regex nos chunks recuperados, não as respostas do LLM.
+
+---
+
+### ✅ Seção `validation` - Validação de Texto
+
+```yaml
+validation:
+  min_word_count: 10           # Mínimo de palavras para página válida
+  min_sentence_coherence: 0.6  # Coerência mínima do texto
+  check_encoding: true         # Verificar encoding UTF-8
+  language_detection: true     # Detectar idioma automaticamente
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `min_word_count` | int | 10 | Páginas com menos palavras são ignoradas |
+| `min_sentence_coherence` | float | 0.6 | Filtro de qualidade do OCR (0.0-1.0) |
+| `check_encoding` | bool | true | Valida caracteres UTF-8 |
+| `language_detection` | bool | true | Verifica se o texto está em português |
+
+---
+
+### 🔎 Seção `search` - Configurações de Busca
+
+```yaml
+search:
+  use_semantic_search: true    # Busca por significado
+  use_keyword_search: true     # Busca por palavras exatas
+  combine_results: true        # Mesclar resultados dos dois métodos
+  max_results: 50              # Limite de resultados
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `use_semantic_search` | bool | true | Busca por similaridade de significado |
+| `use_keyword_search` | bool | true | Busca por correspondência exata de palavras |
+| `combine_results` | bool | true | Une resultados de ambos os métodos |
+| `max_results` | int | 50 | Limite total de resultados |
+
+---
+
+### 📤 Seção `output` - Configurações de Saída
+
+```yaml
+output:
+  default_dir: "./output"
+  highlight_colors:
+    heirs: [255, 255, 0]           # RGB: Amarelo
+    administrator: [0, 255, 0]     # RGB: Verde
+    btg_assets: [0, 191, 255]      # RGB: Azul claro
+    divisions: [255, 182, 193]     # RGB: Rosa
+  output_format: "png"
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `default_dir` | string | "./output" | Pasta padrão para arquivos gerados |
+| `highlight_colors.*` | [R,G,B] | (ver acima) | Cores RGB para cada tipo de destaque |
+| `output_format` | string | "png" | Formato interno das imagens |
+
+---
+
+### 📖 Seções `legal_terms` e `meeting_terms` - Dicionários de Termos
+
+Estas seções contêm listas de palavras-chave usadas para identificar entidades nos documentos. Você pode adicionar ou remover termos conforme necessário.
+
+```yaml
+legal_terms:
+  heir_keywords:         # Palavras que indicam herdeiros
+    - "herdeiro"
+    - "cônjuge"
+    - "filho"
+    # ... adicione mais termos aqui
+
+meeting_terms:
+  asset_keywords:        # Palavras que indicam ativos financeiros
+    - "CRA"
+    - "CRI"
+    - "debênture"
+    # ... adicione mais termos aqui
+```
+
+---
+
+## 🔄 Diagrama de Workflow do Algoritmo
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        DOCUMENT ANALYZER - WORKFLOW                             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌─────────────┐
+                              │  ENTRADA    │
+                              │  PDF File   │
+                              └──────┬──────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  FASE 1: EXTRAÇÃO DE TEXTO (OCR)                                                │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│    ┌──────────┐      ┌──────────────┐      ┌──────────────┐                     │
+│    │   PDF    │ ───► │  pdf2image   │ ───► │  Tesseract   │                     │
+│    │          │      │  (Poppler)   │      │    OCR       │                     │
+│    └──────────┘      └──────────────┘      └──────┬───────┘                     │
+│                                                    │                            │
+│                                                    ▼                            │
+│                                           ┌──────────────┐                      │
+│                                           │ Texto Bruto  │                      │
+│                                           │ (por página) │                      │
+│                                           └──────────────┘                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  FASE 2: PIPELINE RAG - INDEXAÇÃO                                               │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│    ┌──────────┐      ┌──────────────┐      ┌──────────────┐                     │
+│    │  Texto   │ ───► │   Chunker    │ ───► │  Embeddings  │                     │
+│    │  Bruto   │      │  (divisão)   │      │   (BERT)     │                     │
+│    └──────────┘      └──────────────┘      └──────┬───────┘                     │
+│                              │                     │                            │
+│                              │ 38 chunks           │ 38 vetores (768 dim)       │
+│                              ▼                     ▼                            │
+│                       ┌──────────────┐      ┌──────────────┐                    │
+│                       │   Chunks     │      │    FAISS     │                    │
+│                       │  (texto)     │      │  VectorStore │                    │
+│                       └──────────────┘      └──────────────┘                    │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  FASE 3: PIPELINE RAG - RETRIEVAL (para cada query)                             │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│    ┌───────────────────┐                                                        │
+│    │ "Quais ações são  │                                                        │
+│    │  mencionadas?"    │                                                        │
+│    └─────────┬─────────┘                                                        │
+│              │                                                                  │
+│              ▼                                                                  │
+│    ┌──────────────┐      ┌──────────────┐      ┌──────────────┐                 │
+│    │  Embedding   │ ───► │    FAISS     │ ───► │   Top-K      │                 │
+│    │  da Query    │      │   Search     │      │   Chunks     │                 │
+│    └──────────────┘      └──────────────┘      └──────┬───────┘                 │
+│                                                       │                         │
+│                                    ┌──────────────────┼──────────────────┐      │
+│                                    ▼                  ▼                  ▼      │
+│                              ┌──────────┐      ┌──────────┐      ┌──────────┐   │
+│                              │ Chunk 1  │      │ Chunk 2  │      │ Chunk N  │   │
+│                              │ score:95%│      │ score:87%│      │ score:72%│   │
+│                              └──────────┘      └──────────┘      └──────────┘   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  FASE 4: EXTRAÇÃO DE DADOS (Regex + Padrões)                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│    ┌──────────────┐      ┌──────────────────────────────────────┐               │
+│    │   Chunks     │ ───► │          REGEX PATTERNS              │               │
+│    │ Recuperados  │      │                                      │               │
+│    └──────────────┘      │  • CPF: \d{3}\.\d{3}\.\d{3}-\d{2}    │               │
+│                          │  • CNPJ: \d{2}\.\d{3}\.../\d{4}-\d{2}│               │
+│                          │  • Valores: R\$\s*[\d.,]+            │               │
+│                          │  • Ativos: CRA|CRI|CDB|ações|...     │               │
+│                          │  • Percentuais: \d+[,.]?\d*\s*%      │               │
+│                          └──────────────────┬───────────────────┘               │
+│                                             │                                   │
+│                                             ▼                                   │
+│                                    ┌──────────────────┐                         │
+│                                    │  Dados Extraídos │                         │
+│                                    │  (estruturados)  │                         │
+│                                    └──────────────────┘                         │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  FASE 5: GERAÇÃO DE SAÍDAS                                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│    ┌──────────────────┐                                                         │
+│    │  Dados Extraídos │                                                         │
+│    └────────┬─────────┘                                                         │
+│             │                                                                   │
+│             ├─────────────────┬─────────────────┬─────────────────┐             │
+│             ▼                 ▼                 ▼                 ▼             │
+│    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│    │  Relatório   │  │     PDF      │  │    JSON      │  │   Console    │       │
+│    │    .TXT      │  │  Highlights  │  │  (opcional)  │  │   Summary    │       │
+│    └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘       │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🧩 Processo RAG Detalhado
+
+### O que é RAG?
+
+**RAG (Retrieval-Augmented Generation)** é uma técnica que combina:
+1. **Retrieval** (Recuperação): Buscar informações relevantes em uma base de conhecimento
+2. **Generation** (Geração): Usar um modelo de linguagem para gerar respostas
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          ARQUITETURA RAG                                        │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│     DOCUMENTO                    QUERY                     RESPOSTA             │
+│         │                          │                          ▲                 │
+│         ▼                          ▼                          │                 │
+│    ┌─────────┐              ┌─────────────┐            ┌─────────────┐          │
+│    │ INDEXAR │              │  RECUPERAR  │            │   EXTRAIR   │          │
+│    │         │              │  (Retrieval)│───────────►│   (Regex)   │          │
+│    └────┬────┘              └─────────────┘            └─────────────┘          │
+│         │                          ▲                                            │
+│         ▼                          │                                            │
+│    ┌─────────────────────────────────────────┐                                  │
+│    │           VECTOR STORE (FAISS)          │                                  │
+│    │     [vetor1] [vetor2] [vetor3] ...      │                                  │
+│    └─────────────────────────────────────────┘                                  │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Implementação no Document Analyzer
+
+#### Passo 1: Leitura e OCR (`PDFReader` + `OCRExtractor`)
+
+```
+Arquivo: src/core/pdf_reader.py, src/core/ocr_extractor.py
+
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  PDF File   │────►│  pdf2image  │────►│  Tesseract  │
+│             │     │  (Poppler)  │     │    OCR      │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                         Para cada página:     │
+                         - Converte para imagem (300 DPI)
+                         - Aplica OCR           │
+                         - Extrai texto         ▼
+                                        ┌─────────────┐
+                                        │  Document   │
+                                        │  (6 pages)  │
+                                        └─────────────┘
+```
+
+**Código relevante:**
+```python
+# PDFReader.read()
+images = convert_from_path(pdf_path, dpi=300)
+for img in images:
+    text = pytesseract.image_to_string(img, lang='por')
+```
+
+---
+
+#### Passo 2: Chunking (`TextChunker`)
+
+```
+Arquivo: src/rag/chunker.py
+
+┌───────────────────────────────────────────────────────────────┐
+│                     TEXTO DO DOCUMENTO                        │
+│  "O herdeiro João da Silva, CPF 123.456.789-00, cônjuge       │
+│   sobrevivente, ficou responsável por... [continua...]"       │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              │ Estratégia: RECURSIVE
+                              │ chunk_size: 400
+                              │ overlap: 100
+                              ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│   Chunk 1   │  │   Chunk 2   │  │   Chunk 3   │  │   Chunk N   │
+│ (~400 char) │  │ (~400 char) │  │ (~400 char) │  │ (~400 char) │
+│  page: 1    │  │  page: 1    │  │  page: 2    │  │  page: 6    │
+└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
+        │                │                │                │
+        └────────────────┴────────────────┴────────────────┘
+                              │
+                        100 chars de overlap
+                     (contexto compartilhado)
+```
+
+**Por que fazer chunking?**
+- Modelos de embedding têm limite de tokens (~512)
+- Chunks menores permitem recuperação mais precisa
+- Overlap evita perder contexto nas bordas
+
+---
+
+#### Passo 3: Embeddings (`EmbeddingProvider`)
+
+```
+Arquivo: src/rag/embeddings.py
+
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│   Chunk 1   │────►│   BERT Português    │────►│  Vetor [768]    │
+│   (texto)   │     │   (neuralmind)      │     │  [0.23, -0.45,  │
+└─────────────┘     └─────────────────────┘     │   0.12, ...]    │
+                                                └─────────────────┘
+
+Embedding = representação numérica do SIGNIFICADO do texto
+- Textos similares → vetores próximos no espaço
+- Textos diferentes → vetores distantes
+```
+
+**Modelo utilizado:** `neuralmind/bert-base-portuguese-cased`
+- Treinado em português brasileiro
+- 768 dimensões por vetor
+- Executa 100% offline
+
+---
+
+#### Passo 4: Indexação (`VectorStore` - FAISS)
+
+```
+Arquivo: src/rag/vector_store.py
+
+              ┌─────────────────────────────────────────┐
+              │          FAISS INDEX                    │
+              │                                         │
+              │   Vetor 1 ──► Chunk 1 (page 1)          │
+              │   Vetor 2 ──► Chunk 2 (page 1)          │
+              │   Vetor 3 ──► Chunk 3 (page 2)          │
+              │   ...                                   │
+              │   Vetor 38 ──► Chunk 38 (page 6)        │
+              │                                         │
+              │   Indexação: IVF (Inverted File)        │
+              │   Busca: Approximate Nearest Neighbors  │
+              └─────────────────────────────────────────┘
+```
+
+**FAISS (Facebook AI Similarity Search):**
+- Busca vetorial ultra-rápida
+- Suporta milhões de vetores
+- Funciona 100% offline
+
+---
+
+#### Passo 5: Retrieval (`Retriever`)
+
+```
+Arquivo: src/rag/retriever.py
+
+┌───────────────────────────┐
+│ Query: "Quais ações são   │
+│ mencionadas no documento?"│
+└─────────────┬─────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  1. Gera embedding da query │
+│     [0.34, -0.22, 0.56...]  │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  2. Busca no FAISS          │
+│     - Calcula distância     │
+│     - Retorna top_k=10      │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  3. Re-ranking (opcional)   │
+│     - Ordena por relevância │
+│     - Aplica MMR            │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────────┐
+│  RESULTADO: 10 chunks mais relevantes                   │
+│                                                         │
+│  [Chunk 15] score: 0.94 - "...ações PETR4, VALE3..."    │
+│  [Chunk 23] score: 0.87 - "...cotas do fundo XYZ..."    │
+│  [Chunk 8]  score: 0.82 - "...CRI série 2023..."        │
+│  ...                                                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Técnicas de Retrieval utilizadas:**
+
+| Técnica | Descrição | Config |
+|---------|-----------|--------|
+| **Busca Vetorial** | Similaridade de cosseno entre embeddings | Sempre ativo |
+| **Hybrid Search** | Combina vetorial + BM25 (keywords) | `use_hybrid_search: true` |
+| **Re-ranking** | Segunda passada para refinar ordem | `use_reranking: true` |
+| **MMR** | Maximal Marginal Relevance (diversidade) | `use_mmr: true` |
+
+---
+
+#### Passo 6: Extração de Dados (`MeetingMinutesAnalyzer` / `InventoryAnalyzer`)
+
+```
+Arquivo: src/inventory/meeting_minutes_analyzer.py
+
+┌───────────────────────────────────────────────────────────────┐
+│               CHUNKS RECUPERADOS                              │
+│                                                               │
+│  "...deliberou-se pela aquisição de 1.500 ações PETR4         │
+│   ao preço de R$ 32,50 por ação, totalizando R$ 48.750,00     │
+│   conforme aprovado unanimemente pelos quotistas..."          │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              │ Aplicação de REGEX
+                              ▼
+┌───────────────────────────────────────────────────────────────┐
+│  PADRÕES APLICADOS:                                           │
+│                                                               │
+│  • Ações: r"(\d+[\d.]*)\s*(ações?|cotas?)\s+(\w+)"            │
+│    Match: "1.500 ações PETR4"                                 │
+│                                                               │
+│  • Valores: r"R\$\s*([\d.,]+)"                                │
+│    Match: "R$ 32,50", "R$ 48.750,00"                          │
+│                                                               │
+│  • Ativos: r"\b(CRA|CRI|CDB|LCI|LCA|PETR4|VALE3)\b"           │
+│    Match: "PETR4"                                             │
+└───────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────┐
+│  DADOS ESTRUTURADOS:                                          │
+│                                                               │
+│  {                                                            │
+│    "assets": [                                                │
+│      {"tipo": "ação", "ticker": "PETR4", "quantidade": 1500}  │
+│    ],                                                         │
+│    "valores": [32.50, 48750.00],                              │
+│    "pages": [3, 4]                                            │
+│  }                                                            │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Passo 7: Geração de Saídas
+
+```
+Arquivo: src/inventory/meeting_minutes_report.py
+         src/inventory/meeting_minutes_highlighter.py
+
+┌────────────────────┐
+│  Dados Extraídos   │
+└─────────┬──────────┘
+          │
+          ├────────────────────────────────────────────────────┐
+          │                                                    │
+          ▼                                                    ▼
+┌─────────────────────────┐                    ┌─────────────────────────┐
+│   RELATÓRIO TXT         │                    │   PDF COM HIGHLIGHTS    │
+│                         │                    │                         │
+│   ================      │                    │   ┌─────────────────┐   │
+│   ATIVOS ENCONTRADOS    │                    │   │ Página 1        │   │
+│   ================      │                    │   │                 │   │
+│                         │                    │   │ texto com       │   │
+│   1. PETR4              │                    │   │ ██████████      │   │
+│      Tipo: ação         │                    │   │ destacado       │   │
+│      Qtd: 1.500         │                    │   └─────────────────┘   │
+│                         │                    │                         │
+└─────────────────────────┘                    └─────────────────────────┘
+```
+
+---
+
+### Fluxo de Dados Completo
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│   PDF ──► OCR ──► Texto ──► Chunks ──► Embeddings ──► FAISS Index               │
+│                                                           │                     │
+│                                                           │                     │
+│   Query ──► Embedding ──► Busca FAISS ──► Top-K Chunks ──┘                      │
+│                                                │                                │
+│                                                ▼                                │
+│                                    ┌──────────────────────┐                     │
+│                                    │   Regex Extraction   │                     │
+│                                    └──────────┬───────────┘                     │
+│                                               │                                 │
+│                                               ▼                                 │
+│                                    ┌──────────────────────┐                     │
+│                                    │   Dados Estruturados │                     │
+│                                    └──────────┬───────────┘                     │
+│                                               │                                 │
+│                              ┌────────────────┼────────────────┐                │
+│                              ▼                ▼                ▼                │
+│                          [.TXT]           [.PDF]           [.JSON]              │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Componentes e Arquivos
+
+| Componente | Arquivo | Responsabilidade |
+|------------|---------|------------------|
+| **PDFReader** | `src/core/pdf_reader.py` | Conversão PDF → Imagens |
+| **OCRExtractor** | `src/core/ocr_extractor.py` | Extração de texto via Tesseract |
+| **TextChunker** | `src/rag/chunker.py` | Divisão do texto em chunks |
+| **EmbeddingProvider** | `src/rag/embeddings.py` | Geração de vetores BERT |
+| **VectorStore** | `src/rag/vector_store.py` | Indexação FAISS |
+| **Retriever** | `src/rag/retriever.py` | Busca semântica |
+| **RAGPipeline** | `src/rag/rag_pipeline.py` | Orquestração do pipeline |
+| **InventoryAnalyzer** | `src/inventory/analyzer.py` | Extração para inventários |
+| **MeetingMinutesAnalyzer** | `src/inventory/meeting_minutes_analyzer.py` | Extração para atas |
+| **ReportGenerator** | `src/inventory/*_report.py` | Geração de relatórios |
+| **PDFHighlighter** | `src/inventory/*_highlighter.py` | PDF com destaques |
+
+---
+
 ## 🔧 Solução de Problemas
 
 ### Erro: "tesseract is not installed"

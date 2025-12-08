@@ -12,9 +12,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
-from ..rag.rag_pipeline import RAGPipeline, RAGConfig
-from ..core.pdf_reader import PDFReader
-from ..core.ocr_extractor import OCRExtractor
+from rag.rag_pipeline import RAGPipeline, RAGConfig
+from core.pdf_reader import PDFReader
+from core.ocr_extractor import OCRExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +174,8 @@ class InventoryAnalyzer:
             chunk_size=400,
             chunk_overlap=100,
             top_k=10,
-            use_hybrid_search=True
+            use_hybrid_search=True,
+            generate_answers=False  # Usa apenas retrieval por padrão
         )
         self.rag = RAGPipeline(self.config)
         self.reader = PDFReader()
@@ -241,8 +242,8 @@ class InventoryAnalyzer:
         
         for query in queries:
             response = self.rag.query(query)
-            if response.chunks:
-                for chunk in response.chunks:
+            if response.retrieval_result and response.retrieval_result.chunks:
+                for chunk in response.retrieval_result.chunks:
                     all_contexts.append(chunk.text)
                     all_pages.add(chunk.page_number)
         
@@ -268,8 +269,8 @@ class InventoryAnalyzer:
         
         for query in queries:
             response = self.rag.query(query)
-            if response.chunks:
-                for chunk in response.chunks:
+            if response.retrieval_result and response.retrieval_result.chunks:
+                for chunk in response.retrieval_result.chunks:
                     all_contexts.append(chunk.text)
                     all_pages.add(chunk.page_number)
         
@@ -307,8 +308,8 @@ class InventoryAnalyzer:
         
         for query in queries:
             response = self.rag.query(query)
-            if response.chunks:
-                for chunk in response.chunks:
+            if response.retrieval_result and response.retrieval_result.chunks:
+                for chunk in response.retrieval_result.chunks:
                     # Filtra apenas chunks que mencionam BTG
                     if "btg" in chunk.text.lower():
                         all_contexts.append(chunk.text)
@@ -341,8 +342,8 @@ class InventoryAnalyzer:
         
         for query in queries:
             response = self.rag.query(query)
-            if response.chunks:
-                for chunk in response.chunks:
+            if response.retrieval_result and response.retrieval_result.chunks:
+                for chunk in response.retrieval_result.chunks:
                     all_contexts.append(chunk.text)
                     all_pages.add(chunk.page_number)
         
@@ -363,8 +364,8 @@ class InventoryAnalyzer:
         
         # Busca nome do falecido
         response = self.rag.query("Qual o nome do falecido ou autor da herança?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             # Tenta extrair nome após padrões comuns
             patterns = [
                 r"(?:falecido|de cujus|autor da herança)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+)",
@@ -379,8 +380,8 @@ class InventoryAnalyzer:
         
         # Busca data do óbito
         response = self.rag.query("Qual a data do óbito ou falecimento?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             date_pattern = r"\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}"
             match = re.search(date_pattern, text)
             if match:
@@ -388,8 +389,8 @@ class InventoryAnalyzer:
         
         # Busca cartório
         response = self.rag.query("Qual o cartório que lavrou a escritura?")
-        if response.chunks:
-            text = response.chunks[0].text
+        if response.retrieval_result and response.retrieval_result.chunks:
+            text = response.retrieval_result.chunks[0].text
             patterns = [
                 r"(\d+[ºª]?\s*(?:Tabelionato|Cartório|Ofício)[^,\n]*)",
                 r"(Cartório[^,\n]*Notas[^,\n]*)"

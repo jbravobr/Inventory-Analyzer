@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Callable
 
-from ..config.settings import Settings, get_settings
-from ..models.document import Document
+from config.settings import Settings, get_settings
+from models.document import Document
 from .embeddings import EmbeddingProvider, LocalEmbeddings, CloudEmbeddings
 from .chunker import TextChunker, ChunkingConfig, ChunkingStrategy, Chunk
 from .vector_store import VectorStore, FAISSVectorStore, SimpleVectorStore
@@ -52,6 +52,7 @@ class RAGConfig:
     mmr_diversity: float = 0.3
     
     # Generation
+    generate_answers: bool = False  # Se deve gerar respostas com LLM
     temperature: float = 0.1
     max_tokens: int = 1000
     
@@ -264,7 +265,7 @@ class RAGPipeline:
         self,
         question: str,
         top_k: Optional[int] = None,
-        generate_response: bool = True
+        generate_response: Optional[bool] = None
     ) -> RAGResponse:
         """
         Executa query RAG completa.
@@ -273,6 +274,7 @@ class RAGPipeline:
             question: Pergunta/instrução.
             top_k: Número de chunks a recuperar.
             generate_response: Se deve gerar resposta com LLM.
+                              Se None, usa config.generate_answers.
         
         Returns:
             RAGResponse: Resposta completa.
@@ -282,6 +284,10 @@ class RAGPipeline:
         
         start_time = time.time()
         top_k = top_k or self.config.top_k
+        
+        # Usa configuração se não especificado
+        if generate_response is None:
+            generate_response = self.config.generate_answers
         
         # Retrieval
         if self.config.use_mmr:

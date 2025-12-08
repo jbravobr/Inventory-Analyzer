@@ -15,7 +15,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
-from ..core.pdf_reader import PDFReader
+from core.pdf_reader import PDFReader
 from .meeting_minutes_analyzer import MeetingMinutesResult
 
 logger = logging.getLogger(__name__)
@@ -91,6 +91,9 @@ class MeetingMinutesPDFHighlighter:
             # Converte para PIL Image se necessário
             if isinstance(page.image, np.ndarray):
                 img = Image.fromarray(page.image)
+            elif hasattr(page.image, 'image'):
+                # PageImage object - acessa o array interno
+                img = Image.fromarray(page.image.image)
             else:
                 img = page.image.copy()
             
@@ -98,7 +101,7 @@ class MeetingMinutesPDFHighlighter:
             img = self._apply_highlights(
                 img,
                 page.text or "",
-                page.page_number,
+                page.number,
                 result
             )
             
@@ -430,6 +433,9 @@ class MeetingMinutesPDFHighlighter:
             # Converte para PIL Image
             if isinstance(page.image, np.ndarray):
                 img = Image.fromarray(page.image)
+            elif hasattr(page.image, 'image'):
+                # PageImage object - acessa o array interno
+                img = Image.fromarray(page.image.image)
             else:
                 img = page.image.copy()
             
@@ -437,7 +443,7 @@ class MeetingMinutesPDFHighlighter:
             img = self._apply_highlights(
                 img,
                 page.text or "",
-                page.page_number,
+                page.number,
                 result
             )
             
@@ -448,10 +454,11 @@ class MeetingMinutesPDFHighlighter:
                 img = background
             
             # Salva
-            output_path = output_dir / f"page_{page.page_number:03d}_highlighted.png"
+            output_path = output_dir / f"page_{page.number:03d}_highlighted.png"
             img.save(output_path, "PNG")
             output_paths.append(output_path)
         
         logger.info(f"Geradas {len(output_paths)} imagens com highlights")
         return output_paths
+
 
