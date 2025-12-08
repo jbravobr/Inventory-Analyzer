@@ -3,7 +3,7 @@ setlocal ENABLEDELAYEDEXPANSION
 
 echo.
 echo ============================================
-echo  INVENTORY ANALYZER - Instalacao OFFLINE
+echo  DOCUMENT ANALYZER - Instalacao OFFLINE
 echo ============================================
 echo.
 
@@ -47,10 +47,18 @@ if not exist output mkdir output
 if not exist cache mkdir cache
 
 echo.
-echo Instalacao concluida com sucesso!
+echo ============================================
+echo  Instalacao concluida com sucesso!
+echo ============================================
+echo.
+echo Perfis disponiveis:
+echo   inventory        - Escritura de Inventario
+echo   meeting_minutes  - Ata de Reuniao de Quotistas
+echo.
 echo Para usar:
 echo   1. execute: call venv\Scripts\activate.bat
 echo   2. execute: python run.py analyze ^<arquivo.pdf^>
+echo   3. ou com perfil: python run.py analyze ^<arquivo.pdf^> -p meeting_minutes
 echo.
 
 endlocal

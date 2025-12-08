@@ -1,5 +1,5 @@
 # ============================================
-# Inventory Analyzer - Instalação Offline
+# Document Analyzer - Instalação Offline
 # ============================================
 # Este script instala todas as dependências sem conexão com internet
 # Requisitos: Python 3.14 já instalado no sistema
@@ -9,8 +9,8 @@ $ErrorActionPreference = "Stop"
 
 Write-Host ""
 Write-Host "╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║   INVENTORY ANALYZER - Instalação OFFLINE                 ║" -ForegroundColor Cyan
-Write-Host "║   Analisador de Escrituras de Inventário                  ║" -ForegroundColor Cyan
+Write-Host "║   DOCUMENT ANALYZER - Instalação OFFLINE                  ║" -ForegroundColor Cyan
+Write-Host "║   Analisador de Documentos com Multiplos Perfis           ║" -ForegroundColor Cyan
 Write-Host "╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -72,8 +72,13 @@ Write-Host "╔═════════════════════�
 Write-Host "║              INSTALAÇÃO CONCLUÍDA COM SUCESSO!            ║" -ForegroundColor Green
 Write-Host "╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
+Write-Host "Perfis disponiveis:" -ForegroundColor Magenta
+Write-Host "  inventory        - Escritura de Inventario (herdeiros, bens BTG)" -ForegroundColor White
+Write-Host "  meeting_minutes  - Ata de Reuniao de Quotistas (ativos, quantidades)" -ForegroundColor White
+Write-Host ""
 Write-Host "Para usar:" -ForegroundColor Cyan
 Write-Host "  1. Execute: .\activate_env.ps1" -ForegroundColor White
 Write-Host "  2. Execute: python run.py analyze <arquivo.pdf>" -ForegroundColor White
+Write-Host "  3. Ou com perfil: python run.py analyze <arquivo.pdf> -p meeting_minutes" -ForegroundColor White
 Write-Host ""
 
