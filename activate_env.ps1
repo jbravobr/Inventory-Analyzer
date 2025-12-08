@@ -1,5 +1,5 @@
 # ============================================
-# Inventory Analyzer - Ativação do Ambiente
+# Document Analyzer - Ativação do Ambiente
 # ============================================
 
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -26,15 +26,23 @@ $env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
 
 Write-Host ""
 Write-Host "╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║   INVENTORY ANALYZER - Ambiente OFFLINE Ativado           ║" -ForegroundColor Green
+Write-Host "║   DOCUMENT ANALYZER - Ambiente OFFLINE Ativado            ║" -ForegroundColor Green
 Write-Host "╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Green
 Write-Host ""
-Write-Host "Comandos:" -ForegroundColor Cyan
-Write-Host "  python run.py analyze <arquivo.pdf>  - Análise completa" -ForegroundColor White
-Write-Host "  python run.py extract <arquivo.pdf>  - Apenas extrai texto" -ForegroundColor White
-Write-Host "  python run.py info                   - Ver configurações" -ForegroundColor White
+Write-Host "Perfis disponiveis:" -ForegroundColor Magenta
+Write-Host "  inventory        - Escritura de Inventario (herdeiros, bens BTG)" -ForegroundColor White
+Write-Host "  meeting_minutes  - Ata de Reuniao de Quotistas (ativos, quantidades)" -ForegroundColor White
 Write-Host ""
-Write-Host "Exemplo:" -ForegroundColor Yellow
+Write-Host "Comandos:" -ForegroundColor Cyan
+Write-Host "  python run.py analyze <arquivo.pdf>                    - Analise (perfil padrao)" -ForegroundColor White
+Write-Host "  python run.py analyze <arquivo.pdf> -p inventory       - Analise de Inventario" -ForegroundColor White
+Write-Host "  python run.py analyze <arquivo.pdf> -p meeting_minutes - Analise de Ata de Reuniao" -ForegroundColor White
+Write-Host "  python run.py profiles                                 - Listar perfis" -ForegroundColor White
+Write-Host "  python run.py extract <arquivo.pdf>                    - Apenas extrai texto" -ForegroundColor White
+Write-Host "  python run.py info                                     - Ver configuracoes" -ForegroundColor White
+Write-Host ""
+Write-Host "Exemplos:" -ForegroundColor Yellow
 Write-Host "  python run.py analyze escritura.pdf -o ./resultado" -ForegroundColor White
+Write-Host "  python run.py analyze ata_quotistas.pdf -p meeting_minutes" -ForegroundColor White
 Write-Host ""
 
