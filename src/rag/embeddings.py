@@ -4,6 +4,11 @@ Módulo de embeddings para vetorização de texto.
 Suporta:
 - Embeddings locais com sentence-transformers (sem custo de tokens)
 - Embeddings via API (OpenAI, etc.)
+
+O comportamento é controlado pelo ModeManager:
+- Modo OFFLINE: Usa apenas modelos locais pré-baixados
+- Modo ONLINE: Permite downloads e APIs cloud
+- Modo HYBRID: Tenta online, usa local se falhar
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ import pickle
 import numpy as np
 
 from config.settings import Settings, get_settings
+from config.mode_manager import get_mode_manager, ModeManager
 
 logger = logging.getLogger(__name__)
 
@@ -129,21 +135,27 @@ class LocalEmbeddings(EmbeddingProvider):
     Provedor de embeddings local usando sentence-transformers.
     
     Não requer API externa nem consome tokens.
+    Respeita o ModeManager para controle de downloads.
     """
     
     def __init__(
         self,
         settings: Optional[Settings] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        mode_manager: Optional[ModeManager] = None
     ):
         super().__init__(settings)
         self._model = None
         self._custom_model_name = model_name
+        self._mode_manager = mode_manager
     
     def initialize(self) -> None:
         """Inicializa o modelo sentence-transformers."""
         if self._initialized:
             return
+        
+        # Obtém ModeManager
+        mode_mgr = self._mode_manager or get_mode_manager()
         
         try:
             from sentence_transformers import SentenceTransformer
@@ -155,7 +167,20 @@ class LocalEmbeddings(EmbeddingProvider):
             )
             
             logger.info(f"Carregando modelo de embeddings: {self._model_name}")
-            self._model = SentenceTransformer(self._model_name)
+            logger.debug(f"Modo de operação: {mode_mgr.mode.value}")
+            
+            # Configura parâmetros baseado no modo
+            load_kwargs = {}
+            if mode_mgr.is_offline:
+                # Em modo offline, força uso apenas de arquivos locais
+                load_kwargs['local_files_only'] = True
+                logger.debug("Modo OFFLINE: usando apenas arquivos locais")
+            elif not mode_mgr.allow_downloads:
+                # Downloads bloqueados mesmo em modo online
+                load_kwargs['local_files_only'] = True
+                logger.debug("Downloads bloqueados: usando apenas arquivos locais")
+            
+            self._model = SentenceTransformer(self._model_name, **load_kwargs)
             
             # Obtém dimensão do modelo
             self._dimension = self._model.get_sentence_embedding_dimension()
@@ -173,6 +198,11 @@ class LocalEmbeddings(EmbeddingProvider):
             )
         except Exception as e:
             logger.error(f"Erro ao carregar modelo: {e}")
+            if mode_mgr.is_offline:
+                logger.error(
+                    "MODO OFFLINE: Verifique se o modelo está disponível em "
+                    f"{mode_mgr.models_path}"
+                )
             raise
     
     def embed_text(self, text: str) -> np.ndarray:
@@ -369,24 +399,45 @@ class CloudEmbeddings(EmbeddingProvider):
 
 def get_embedding_provider(
     mode: Optional[str] = None,
-    settings: Optional[Settings] = None
+    settings: Optional[Settings] = None,
+    mode_manager: Optional[ModeManager] = None
 ) -> EmbeddingProvider:
     """
     Factory para obter provedor de embeddings.
     
+    O ModeManager controla o comportamento:
+    - OFFLINE: Sempre retorna LocalEmbeddings
+    - ONLINE: Pode retornar CloudEmbeddings se configurado
+    - HYBRID: Tenta cloud, fallback para local
+    
     Args:
         mode: "local" ou "cloud". Se None, usa configuração.
         settings: Configurações do aplicativo.
+        mode_manager: Gerenciador de modo (opcional).
     
     Returns:
         EmbeddingProvider: Provedor configurado.
     """
     settings = settings or get_settings()
+    mode_mgr = mode_manager or get_mode_manager()
+    
+    # ModeManager pode forçar uso de modelo local
+    if mode_mgr.should_use_local_model():
+        logger.debug(f"ModeManager: usando embeddings locais (modo={mode_mgr.mode.value})")
+        return LocalEmbeddings(settings, mode_manager=mode_mgr)
+    
+    # Usa modo especificado ou da configuração
     mode = mode or settings.nlp.mode
     
     if mode == "local":
-        return LocalEmbeddings(settings)
+        return LocalEmbeddings(settings, mode_manager=mode_mgr)
     elif mode == "cloud":
+        if mode_mgr.is_offline:
+            logger.warning(
+                "Modo CLOUD solicitado mas sistema está OFFLINE. "
+                "Usando embeddings locais."
+            )
+            return LocalEmbeddings(settings, mode_manager=mode_mgr)
         return CloudEmbeddings(settings)
     else:
         raise ValueError(f"Modo não suportado: {mode}")

@@ -1,11 +1,48 @@
 # ============================================
-# Document Analyzer - Configuração OFFLINE
+# Document Analyzer - Configuração
 # ============================================
 # Analisador de Documentos Jurídicos/Financeiros
-# Versão: 1.1.0-offline
+# Versão: 1.1.0
 # ============================================
 
+# ============================================
+# MODO DE OPERAÇÃO
+# ============================================
+# Controla como o aplicativo se comporta em relação a:
+# - Download de modelos do HuggingFace
+# - Uso de APIs cloud (embeddings, geração)
+# - Comportamento de fallback
+#
+# Modos disponíveis:
+#   offline - 100% local, sem conexão à internet (PADRÃO)
+#   online  - Permite downloads e APIs cloud
+#   hybrid  - Tenta online, usa cache local se falhar
+# ============================================
+system:
+  mode: "offline"  # "offline" | "online" | "hybrid"
+  
+  # Configurações para modo ONLINE
+  online:
+    allow_model_download: true      # Permite baixar modelos do HuggingFace
+    check_for_updates: false        # Verifica atualizações de modelos
+    use_cloud_embeddings: false     # Usar API de embeddings (OpenAI, etc.)
+    use_cloud_generation: false     # Usar API de geração (GPT-4, Claude, etc.)
+    connection_timeout: 10          # Timeout em segundos para conexões
+  
+  # Configurações para modo OFFLINE
+  offline:
+    models_path: "./models"         # Caminho dos modelos locais
+    strict: true                    # Se true, falha se modelo não existir
+  
+  # Configurações para modo HYBRID
+  hybrid:
+    prefer: "online"                # "online" ou "offline"
+    fallback_enabled: true          # Usa cache local se online falhar
+    fallback_timeout: 5             # Segundos antes de usar fallback
+
+# ============================================
 # Configurações gerais
+# ============================================
 app:
   name: "Document Analyzer (Offline)"
   version: "1.1.0-offline"

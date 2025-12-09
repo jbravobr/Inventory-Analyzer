@@ -1,6 +1,31 @@
-# Document Analyzer - Versão OFFLINE 📴
+# Document Analyzer 📄
 
-Analisador de documentos PDF para ambientes corporativos restritos, com suporte a **múltiplos perfis de análise**.
+Analisador de documentos PDF para ambientes corporativos, com suporte a **múltiplos perfis de análise** e **múltiplos modos de operação**.
+
+## 🌐 Modos de Operação
+
+O sistema suporta três modos de operação, configuráveis via `config.yaml` ou flags CLI:
+
+| Modo | Descrição | Quando Usar |
+|------|-----------|-------------|
+| `offline` | 100% local, sem conexão à internet | **PADRÃO** - Ambientes corporativos restritos |
+| `online` | Permite downloads do HuggingFace e APIs cloud | Desenvolvimento, atualizações |
+| `hybrid` | Tenta online, usa cache local se falhar | Conectividade intermitente |
+
+**Configuração permanente** (`config.yaml`):
+```yaml
+system:
+  mode: "offline"  # ou "online" ou "hybrid"
+```
+
+**Override temporário** (CLI):
+```bash
+python run.py --offline analyze documento.pdf   # Força offline
+python run.py --online analyze documento.pdf    # Força online  
+python run.py --hybrid analyze documento.pdf    # Força híbrido
+```
+
+> 📖 Para detalhes completos, veja [docs/MODOS_OPERACAO.md](docs/MODOS_OPERACAO.md)
 
 ## 🎯 Perfis de Análise Disponíveis
 
@@ -131,6 +156,18 @@ python run.py analyze documento.pdf -o C:\Resultados
 
 ```powershell
 python run.py analyze documento.pdf --json
+```
+
+### Forçar modo online (para baixar modelos atualizados)
+
+```powershell
+python run.py --online --allow-download analyze documento.pdf
+```
+
+### Usar modo híbrido (online com fallback offline)
+
+```powershell
+python run.py --hybrid analyze documento.pdf
 ```
 
 ### Apenas extrair texto (sem análise)
@@ -607,8 +644,8 @@ meeting_terms:
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
 │    ┌──────────┐      ┌──────────────┐      ┌──────────────┐                     │
-│    │   PDF    │ ───► │  pdf2image   │ ───► │  Tesseract   │                     │
-│    │          │      │  (Poppler)   │      │    OCR       │                     │
+│    │   PDF    │ ───► │   PyMuPDF    │ ───► │  Tesseract   │                     │
+│    │          │      │   (fitz)     │      │    OCR       │                     │
 │    └──────────┘      └──────────────┘      └──────┬───────┘                     │
 │                                                    │                            │
 │                                                    ▼                            │
@@ -744,8 +781,8 @@ meeting_terms:
 Arquivo: src/core/pdf_reader.py, src/core/ocr_extractor.py
 
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  PDF File   │────►│  pdf2image  │────►│  Tesseract  │
-│             │     │  (Poppler)  │     │    OCR      │
+│  PDF File   │────►│   PyMuPDF   │────►│  Tesseract  │
+│             │     │   (fitz)    │     │    OCR      │
 └─────────────┘     └─────────────┘     └──────┬──────┘
                                                │
                          Para cada página:     │
@@ -1031,7 +1068,14 @@ Verifique o caminho no `config.yaml` ou se o Tesseract está no PATH.
 
 ### Erro: "Unable to get page count"
 
-Execute `.\activate_env.ps1` antes de usar (configura Poppler no PATH).
+O PyMuPDF deve estar instalado. Execute `.\activate_env.ps1` antes de usar.
+
+### Erro: "Modelo não encontrado" em modo OFFLINE
+
+Verifique se a pasta `./models/` contém os modelos necessários. Se precisar baixar, use temporariamente:
+```bash
+python run.py --online --allow-download analyze documento.pdf
+```
 
 ### PDF com highlights em branco
 
@@ -1045,10 +1089,11 @@ Aumente o `dpi` no config.yaml para melhor qualidade de OCR.
 
 | Componente | Tamanho |
 |------------|---------|
-| Wheels (Python) | ~283 MB |
+| Wheels (Python) | ~300 MB |
 | Modelos ML | ~1.8 GB |
-| Poppler | ~35 MB |
 | **Total** | **~2.1 GB** |
+
+> Nota: Poppler não é mais necessário - o PyMuPDF (wheel puro) substituiu a dependência.
 
 ## ⚠️ Limitações
 

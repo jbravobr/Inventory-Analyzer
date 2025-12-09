@@ -10,6 +10,13 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 from dotenv import load_dotenv
 
+from .mode_manager import (
+    SystemConfig,
+    OnlineConfig,
+    OfflineConfig,
+    HybridConfig,
+)
+
 
 @dataclass
 class OCRConfig:
@@ -141,6 +148,7 @@ class AppConfig:
 class Settings:
     """Configurações completas do aplicativo."""
     
+    system: SystemConfig = field(default_factory=SystemConfig)
     app: AppConfig = field(default_factory=AppConfig)
     ocr: OCRConfig = field(default_factory=OCRConfig)
     nlp: NLPConfig = field(default_factory=NLPConfig)
@@ -162,6 +170,19 @@ class Settings:
     def _from_dict(cls, data: Dict[str, Any]) -> "Settings":
         """Cria Settings a partir de um dicionário."""
         settings = cls()
+        
+        # Carrega configuração de sistema (modo de operação)
+        if "system" in data:
+            system_data = data["system"]
+            online_config = OnlineConfig(**system_data.get("online", {}))
+            offline_config = OfflineConfig(**system_data.get("offline", {}))
+            hybrid_config = HybridConfig(**system_data.get("hybrid", {}))
+            settings.system = SystemConfig(
+                mode=system_data.get("mode", "offline"),
+                online=online_config,
+                offline=offline_config,
+                hybrid=hybrid_config
+            )
         
         if "app" in data:
             settings.app = AppConfig(**data["app"])

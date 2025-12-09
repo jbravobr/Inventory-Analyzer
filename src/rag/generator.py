@@ -2,6 +2,11 @@
 Módulo de geração de respostas usando LLM.
 
 Suporta geração local (modelos pequenos) e via API (OpenAI, Anthropic).
+
+O comportamento é controlado pelo ModeManager:
+- Modo OFFLINE: Usa apenas modelos locais pré-baixados
+- Modo ONLINE: Permite downloads e APIs cloud
+- Modo HYBRID: Tenta online, usa local se falhar
 """
 
 from __future__ import annotations
@@ -13,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 
 from config.settings import Settings, get_settings
+from config.mode_manager import get_mode_manager, ModeManager
 from .retriever import RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -146,16 +152,19 @@ class LocalGenerator(ResponseGenerator):
     
     Usa modelos menores que podem rodar localmente.
     Não consome tokens de API.
+    Respeita o ModeManager para controle de downloads.
     """
     
     def __init__(
         self,
         settings: Optional[Settings] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        mode_manager: Optional[ModeManager] = None
     ):
         super().__init__(settings)
         self._model = None
         self._tokenizer = None
+        self._mode_manager = mode_manager
         # Usa modelo local do settings se disponível
         default_model = "pierreguillou/gpt2-small-portuguese"
         if settings and hasattr(settings, 'rag') and settings.rag.generation.local_model:
@@ -167,19 +176,29 @@ class LocalGenerator(ResponseGenerator):
         if self._initialized:
             return
         
+        # Obtém ModeManager
+        mode_mgr = self._mode_manager or get_mode_manager()
+        
         logger.info(f"Carregando modelo local: {self._model_name}")
+        logger.debug(f"Modo de operação: {mode_mgr.mode.value}")
         
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
             
-            # Usa local_files_only para evitar downloads
+            # Configura parâmetros baseado no modo
+            load_kwargs = {}
+            if mode_mgr.is_offline or not mode_mgr.allow_downloads:
+                # Força uso apenas de arquivos locais
+                load_kwargs['local_files_only'] = True
+                logger.debug("Usando apenas arquivos locais para modelo de geração")
+            
             self._tokenizer = AutoTokenizer.from_pretrained(
                 self._model_name, 
-                local_files_only=True
+                **load_kwargs
             )
             self._model = AutoModelForCausalLM.from_pretrained(
                 self._model_name,
-                local_files_only=True
+                **load_kwargs
             )
             
             # Configura padding token
@@ -194,6 +213,14 @@ class LocalGenerator(ResponseGenerator):
                 "transformers não instalado. "
                 "Instale com: pip install transformers torch"
             )
+        except Exception as e:
+            logger.error(f"Erro ao carregar modelo: {e}")
+            if mode_mgr.is_offline:
+                logger.error(
+                    "MODO OFFLINE: Verifique se o modelo está disponível em "
+                    f"{mode_mgr.models_path}"
+                )
+            raise
     
     def generate(
         self,
@@ -502,22 +529,46 @@ Não invente informações."""
 
 def get_response_generator(
     mode: Optional[str] = None,
-    settings: Optional[Settings] = None
+    settings: Optional[Settings] = None,
+    mode_manager: Optional[ModeManager] = None
 ) -> ResponseGenerator:
     """
     Factory para obter gerador de respostas.
     
+    O ModeManager controla o comportamento:
+    - OFFLINE: Sempre retorna LocalGenerator
+    - ONLINE: Pode retornar CloudGenerator se configurado
+    - HYBRID: Tenta cloud, fallback para local
+    
     Args:
         mode: "local" ou "cloud"
         settings: Configurações
+        mode_manager: Gerenciador de modo (opcional)
     
     Returns:
         ResponseGenerator: Gerador configurado
     """
     settings = settings or get_settings()
+    mode_mgr = mode_manager or get_mode_manager()
+    
+    # ModeManager pode forçar uso de modelo local
+    if mode_mgr.should_use_local_model():
+        logger.debug(f"ModeManager: usando gerador local (modo={mode_mgr.mode.value})")
+        return LocalGenerator(settings, mode_manager=mode_mgr)
+    
+    # Usa modo especificado ou da configuração
     mode = mode or settings.nlp.mode
     
     if mode == "local":
-        return LocalGenerator(settings)
-    else:
+        return LocalGenerator(settings, mode_manager=mode_mgr)
+    elif mode == "cloud":
+        if mode_mgr.is_offline:
+            logger.warning(
+                "Modo CLOUD solicitado mas sistema está OFFLINE. "
+                "Usando gerador local."
+            )
+            return LocalGenerator(settings, mode_manager=mode_mgr)
         return CloudGenerator(settings)
+    else:
+        # Default para local
+        return LocalGenerator(settings, mode_manager=mode_mgr)

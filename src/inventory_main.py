@@ -6,6 +6,11 @@ CLI principal do Document Analyzer.
 Suporta múltiplos perfis de análise:
 - inventory: Escritura Pública de Inventário
 - meeting_minutes: Ata de Reunião de Quotistas
+
+Suporta múltiplos modos de operação:
+- offline: 100% local, sem conexão à internet (PADRÃO)
+- online: Permite downloads e APIs cloud
+- hybrid: Tenta online, usa cache local se falhar
 """
 
 import json
@@ -30,6 +35,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 console = Console()
+
+# Contexto global para passar flags entre comandos
+class Context:
+    """Contexto para armazenar configurações globais da CLI."""
+    def __init__(self):
+        self.mode_override: Optional[str] = None
+        self.allow_download: Optional[bool] = None
+
+pass_context = click.make_pass_decorator(Context, ensure=True)
 
 # Perfis disponíveis
 AVAILABLE_PROFILES = {
@@ -57,13 +71,40 @@ def get_active_profile() -> str:
     return "inventory"
 
 
-def print_banner(profile: str = "inventory"):
+def _init_mode_manager(mode_override: Optional[str], allow_download: Optional[bool]):
+    """Inicializa o ModeManager com as opções da CLI."""
+    from config.settings import get_settings
+    from config.mode_manager import init_mode_manager
+    
+    settings = get_settings()
+    
+    # Inicializa o ModeManager
+    mode_mgr = init_mode_manager(
+        config=settings.system,
+        cli_override=mode_override,
+        allow_download_override=allow_download
+    )
+    
+    # Log do modo ativo
+    logger.info(f"Modo de operação: {mode_mgr.get_status_message()}")
+
+
+def print_banner(profile: str = "inventory", mode: Optional[str] = None):
     """Exibe banner do aplicativo."""
+    from config.mode_manager import get_mode_manager
+    
     profile_info = AVAILABLE_PROFILES.get(profile, AVAILABLE_PROFILES["inventory"])
+    
+    # Obtém modo de operação
+    try:
+        mode_mgr = get_mode_manager()
+        mode_str = mode_mgr.mode.value.upper()
+    except:
+        mode_str = (mode or "OFFLINE").upper()
     
     banner = f"""
 ╔═══════════════════════════════════════════════════════════╗
-║       DOCUMENT ANALYZER v1.1.0 - OFFLINE                  ║
+║       DOCUMENT ANALYZER v1.1.0 - {mode_str:^8}                ║
 ║   {profile_info['name']:^51} ║
 ╚═══════════════════════════════════════════════════════════╝
 """
@@ -71,10 +112,40 @@ def print_banner(profile: str = "inventory"):
 
 
 @click.group()
-@click.version_option(version="1.0.0")
-def cli():
-    """Inventory Analyzer - Análise de Escrituras de Inventário."""
-    pass
+@click.version_option(version="1.1.0")
+@click.option('--offline', 'mode', flag_value='offline', default=True,
+              help='Modo offline: usa apenas modelos locais (PADRÃO)')
+@click.option('--online', 'mode', flag_value='online',
+              help='Modo online: permite downloads e APIs cloud')
+@click.option('--hybrid', 'mode', flag_value='hybrid',
+              help='Modo híbrido: tenta online, fallback para offline')
+@click.option('--allow-download/--no-download', 'allow_download', default=None,
+              help='Permite/bloqueia download de modelos (override)')
+@pass_context
+def cli(ctx: Context, mode: str, allow_download: Optional[bool]):
+    """
+    Document Analyzer - Análise de Documentos Jurídicos/Financeiros.
+    
+    MODOS DE OPERAÇÃO:
+    
+    \b
+      --offline   (padrão) 100% local, sem conexão à internet
+      --online    Permite downloads do HuggingFace e APIs cloud
+      --hybrid    Tenta online, usa cache local se falhar
+    
+    EXEMPLOS:
+    
+    \b
+      python run.py analyze documento.pdf
+      python run.py --online analyze documento.pdf --profile meeting_minutes
+      python run.py --hybrid --allow-download analyze documento.pdf
+    """
+    # Armazena opções no contexto
+    ctx.mode_override = mode
+    ctx.allow_download = allow_download
+    
+    # Inicializa ModeManager com as opções
+    _init_mode_manager(mode, allow_download)
 
 
 @cli.command()
@@ -471,19 +542,28 @@ def profiles():
 
 
 @cli.command()
-def info():
+@pass_context
+def info(ctx: Context):
     """Exibe informações sobre a configuração atual."""
-    print_banner()
+    print_banner(mode=ctx.mode_override)
     
     from config.settings import get_settings
+    from config.mode_manager import get_mode_manager
     
     settings = get_settings()
+    mode_mgr = get_mode_manager()
     active_profile = get_active_profile()
     
     table = Table(title="Configuração Atual", show_header=True)
     table.add_column("Parâmetro", style="cyan")
     table.add_column("Valor", style="green")
     
+    # Modo de operação
+    table.add_row("Modo de Operação", mode_mgr.get_status_message())
+    table.add_row("Downloads Permitidos", "Sim" if mode_mgr.allow_downloads else "Não")
+    table.add_row("APIs Cloud", "Habilitadas" if mode_mgr.allow_cloud_apis else "Desabilitadas")
+    table.add_row("Caminho dos Modelos", mode_mgr.models_path)
+    table.add_row("", "")  # Separador
     table.add_row("Perfil Ativo", active_profile)
     table.add_row("Modo NLP", settings.nlp.mode)
     table.add_row("Tesseract", settings.ocr.tesseract_path)
