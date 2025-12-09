@@ -48,12 +48,31 @@ class MeetingMinutesPDFHighlighter:
         "deliberations": "Deliberações"
     }
     
-    # Keywords de ativos para highlight
+    # Keywords de ativos para highlight - padrões específicos para evitar falsos positivos
     ASSET_KEYWORDS = [
+        # Siglas específicas (word boundaries)
         "CRA", "CRI", "CDB", "LCI", "LCA", "FII", "FIM", "FIC", "ETF",
-        "debênture", "debêntures", "ações", "ação", "cotas", "cota",
-        "título", "títulos", "Tesouro", "NTN", "LFT", "LTN"
+        "FICFIA", "FICFIM", "FIDC", "FIP",
+        # Títulos públicos
+        "Tesouro", "Tesouro Selic", "Tesouro IPCA", "NTN-B", "NTN-F", "LFT", "LTN",
+        # Outros (com cuidado)
+        "debênture", "debêntures",
     ]
+    
+    # Padrões REGEX para highlight (mais precisos)
+    HIGHLIGHT_PATTERNS = {
+        "assets": [
+            r'\b(CRA|CRI|CDB|LCI|LCA|FII|FIM|FIC|FICFIA|FICFIM|ETF|FIDC|FIP)\b',
+            r'\bTesouro\s+(?:Selic|IPCA|Direto|Prefixado)\b',
+            r'\b(NTN-?[BF]|LFT|LTN)\b',
+            r'\bdebêntures?\b',
+            r'\b[A-Z]{4}\d{1,2}\b',  # Tickers de ações
+        ],
+        "quantities": [
+            r'R\$\s*[\d.,]+',
+            r'\d+(?:[.,]\d+)*\s*(?:cotas?|unidades?)',
+        ]
+    }
     
     def __init__(self):
         self.reader = PDFReader()
@@ -151,7 +170,8 @@ class MeetingMinutesPDFHighlighter:
         page_number: int,
         result: MeetingMinutesResult
     ) -> Image.Image:
-        """Aplica highlights em uma página."""
+        """Aplica highlights em uma página usando padrões regex."""
+        import re
         
         # Converte para RGBA para suportar transparência
         if image.mode != 'RGBA':
@@ -162,57 +182,139 @@ class MeetingMinutesPDFHighlighter:
         draw = ImageDraw.Draw(overlay)
         
         text_lower = text.lower()
+        highlighted_positions = []  # Para evitar sobreposição
         
-        # Highlight ativos
-        if page_number in result.assets_pages:
-            # Destaca keywords de ativos
-            for keyword in self.ASSET_KEYWORDS:
-                if keyword.lower() in text_lower:
-                    self._highlight_text_in_image(
-                        draw, image, text, keyword, self.COLORS["assets"]
-                    )
+        # Highlight ativos usando padrões REGEX
+        if page_number in result.assets_pages or not result.assets_pages:
+            for pattern in self.HIGHLIGHT_PATTERNS.get("assets", []):
+                try:
+                    for match in re.finditer(pattern, text, re.IGNORECASE):
+                        matched_text = match.group(0)
+                        pos = match.start()
+                        
+                        # Evita highlights muito próximos
+                        if not any(abs(pos - p) < 20 for p in highlighted_positions):
+                            self._highlight_at_position(
+                                draw, image, text, pos, len(matched_text),
+                                self.COLORS["assets"]
+                            )
+                            highlighted_positions.append(pos)
+                except re.error:
+                    continue
             
-            # Destaca ativos específicos encontrados
+            # Destaca tickers específicos encontrados
             for asset in result.assets:
-                if asset.name and asset.name.lower()[:20] in text_lower:
-                    self._highlight_text_in_image(
-                        draw, image, text, asset.name[:30], self.COLORS["assets"]
-                    )
-                if asset.ticker and asset.ticker.lower() in text_lower:
-                    self._highlight_text_in_image(
-                        draw, image, text, asset.ticker, self.COLORS["assets"]
-                    )
+                if asset.ticker:
+                    ticker_pattern = rf'\b{re.escape(asset.ticker)}\b'
+                    for match in re.finditer(ticker_pattern, text, re.IGNORECASE):
+                        pos = match.start()
+                        if not any(abs(pos - p) < 20 for p in highlighted_positions):
+                            self._highlight_at_position(
+                                draw, image, text, pos, len(asset.ticker),
+                                self.COLORS["assets"]
+                            )
+                            highlighted_positions.append(pos)
         
         # Highlight quantidades/valores
-        if page_number in result.quantities_pages:
-            # Destaca valores monetários (R$)
-            import re
-            values = re.findall(r'R\$\s*[\d.,]+', text)
-            for val in values:
-                self._highlight_text_in_image(
-                    draw, image, text, val, self.COLORS["quantities"]
-                )
-            
-            # Destaca quantidades numéricas seguidas de unidades
-            qty_patterns = re.findall(r'\d+(?:[.,]\d+)*\s*(?:unidades?|cotas?|ações?)', text, re.IGNORECASE)
-            for qty in qty_patterns:
-                self._highlight_text_in_image(
-                    draw, image, text, qty, self.COLORS["quantities"]
-                )
+        if page_number in result.quantities_pages or not result.quantities_pages:
+            for pattern in self.HIGHLIGHT_PATTERNS.get("quantities", []):
+                try:
+                    for match in re.finditer(pattern, text, re.IGNORECASE):
+                        matched_text = match.group(0)
+                        pos = match.start()
+                        
+                        if not any(abs(pos - p) < 20 for p in highlighted_positions):
+                            self._highlight_at_position(
+                                draw, image, text, pos, len(matched_text),
+                                self.COLORS["quantities"]
+                            )
+                            highlighted_positions.append(pos)
+                except re.error:
+                    continue
         
         # Highlight info do fundo (primeiras páginas)
         if page_number <= 3:
-            if result.fund_name and result.fund_name.lower() in text_lower:
-                self._highlight_text_in_image(
-                    draw, image, text, result.fund_name, self.COLORS["fund_info"]
-                )
-            if result.fund_cnpj and result.fund_cnpj in text:
-                self._highlight_text_in_image(
-                    draw, image, text, result.fund_cnpj, self.COLORS["fund_info"]
-                )
+            if result.fund_cnpj:
+                pos = text.find(result.fund_cnpj)
+                if pos != -1:
+                    self._highlight_at_position(
+                        draw, image, text, pos, len(result.fund_cnpj),
+                        self.COLORS["fund_info"]
+                    )
         
         # Combina layers
         return Image.alpha_composite(image, overlay)
+    
+    def _highlight_at_position(
+        self,
+        draw: ImageDraw.Draw,
+        image: Image.Image,
+        full_text: str,
+        char_position: int,
+        text_length: int,
+        color: Tuple[int, int, int, int]
+    ) -> None:
+        """
+        Destaca texto em uma imagem em uma posição específica.
+        
+        Usa a posição do caractere no texto para estimar a posição
+        na imagem de forma mais precisa.
+        """
+        if char_position < 0:
+            return
+        
+        img_width, img_height = image.size
+        
+        # Parâmetros ajustados para documentos típicos
+        margin_x = int(img_width * 0.08)  # 8% de margem horizontal
+        margin_y = int(img_height * 0.04)  # 4% de margem superior
+        
+        # Área útil do texto (onde o conteúdo está)
+        text_area_width = img_width - 2 * margin_x
+        text_area_height = img_height - 2 * margin_y
+        
+        # Estima caracteres por linha (baseado em documento A4 típico)
+        chars_per_line = 80
+        
+        # Calcula linha e coluna aproximadas
+        line_num = char_position // chars_per_line
+        col_num = char_position % chars_per_line
+        
+        # Estima total de linhas no documento
+        total_lines = max(len(full_text) // chars_per_line, 1)
+        
+        # Altura de cada linha
+        line_height = text_area_height / max(total_lines, 40)  # Mínimo 40 linhas
+        line_height = max(line_height, 15)  # Mínimo 15 pixels
+        line_height = min(line_height, 40)  # Máximo 40 pixels
+        
+        # Posição Y
+        y_pos = margin_y + int(line_num * line_height)
+        
+        # Posição X (baseada na coluna)
+        x_start = margin_x + int((col_num / chars_per_line) * text_area_width)
+        
+        # Largura do highlight
+        char_width = text_area_width / chars_per_line
+        highlight_width = int(text_length * char_width)
+        highlight_width = max(highlight_width, 50)  # Mínimo 50 pixels
+        highlight_width = min(highlight_width, text_area_width - x_start + margin_x)
+        
+        # Coordenadas do retângulo
+        x1 = x_start
+        y1 = y_pos
+        x2 = x_start + highlight_width
+        y2 = y_pos + int(line_height * 1.2)  # Um pouco mais alto
+        
+        # Garante que está dentro dos limites
+        x1 = max(margin_x, min(x1, img_width - margin_x))
+        x2 = max(x1 + 50, min(x2, img_width - margin_x))
+        y1 = max(margin_y, min(y1, img_height - margin_y - 20))
+        y2 = max(y1 + 15, min(y2, img_height - margin_y))
+        
+        # Desenha retângulo de highlight com opacidade aumentada
+        highlight_color = (color[0], color[1], color[2], 150)  # Aumenta opacidade
+        draw.rectangle([x1, y1, x2, y2], fill=highlight_color)
     
     def _highlight_text_in_image(
         self,
@@ -223,59 +325,21 @@ class MeetingMinutesPDFHighlighter:
         color: Tuple[int, int, int, int]
     ) -> None:
         """
-        Destaca texto em uma imagem.
-        
-        Esta é uma aproximação simples que adiciona faixas coloridas
-        nas regiões onde o texto provavelmente está.
+        Destaca texto em uma imagem (método legado mantido para compatibilidade).
         """
         if not search_text:
             return
         
-        # Encontra posição aproximada do texto
         text_lower = full_text.lower()
         search_lower = search_text.lower()
         
-        # Calcula posição proporcional
         pos = text_lower.find(search_lower)
         if pos == -1:
             return
         
-        # Estima posição vertical baseada na proporção do texto
-        text_proportion = pos / max(len(full_text), 1)
-        
-        img_width, img_height = image.size
-        
-        # Margem (assume ~10% de margem em cada lado)
-        margin_x = int(img_width * 0.1)
-        margin_y = int(img_height * 0.05)
-        
-        # Área útil do texto
-        text_area_width = img_width - 2 * margin_x
-        text_area_height = img_height - 2 * margin_y
-        
-        # Posição Y estimada
-        y_pos = margin_y + int(text_proportion * text_area_height)
-        
-        # Altura da linha de texto (estimada)
-        line_height = int(img_height * 0.02)  # ~2% da altura
-        
-        # Largura do highlight (proporcional ao tamanho do texto)
-        highlight_width = min(
-            int(len(search_text) / 50 * text_area_width),
-            text_area_width
+        self._highlight_at_position(
+            draw, image, full_text, pos, len(search_text), color
         )
-        
-        # Desenha retângulo de highlight
-        x1 = margin_x
-        y1 = y_pos - line_height // 2
-        x2 = margin_x + highlight_width
-        y2 = y_pos + line_height // 2
-        
-        # Garante que está dentro dos limites
-        y1 = max(margin_y, min(y1, img_height - margin_y - line_height))
-        y2 = max(margin_y + line_height, min(y2, img_height - margin_y))
-        
-        draw.rectangle([x1, y1, x2, y2], fill=color)
     
     def _create_legend_page(
         self,

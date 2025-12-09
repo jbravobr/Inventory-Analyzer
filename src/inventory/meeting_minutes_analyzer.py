@@ -141,18 +141,77 @@ class MeetingMinutesAnalyzer:
         "deliberations": (255, 182, 193) # Rosa - Deliberações
     }
     
-    # Tipos de ativos conhecidos
-    ASSET_TYPES = {
-        "ação": ["ação", "ações", "ação ordinária", "ação preferencial", "on", "pn"],
-        "CRA": ["cra", "certificado de recebíveis do agronegócio"],
-        "CRI": ["cri", "certificado de recebíveis imobiliários"],
-        "debênture": ["debênture", "debêntures", "debenture"],
-        "cota_fundo": ["cota", "cotas", "fii", "fim", "fic", "etf", "fundo"],
-        "CDB": ["cdb", "certificado de depósito bancário"],
-        "LCI": ["lci", "letra de crédito imobiliário"],
-        "LCA": ["lca", "letra de crédito do agronegócio"],
-        "titulo_publico": ["tesouro", "ntn", "lft", "ltn", "título público"]
+    # Padrões REGEX específicos para cada tipo de ativo (evita falsos positivos)
+    # Usam word boundaries \b para não capturar partes de palavras
+    ASSET_PATTERNS = {
+        "ação": [
+            # Padrões específicos para ações (não captura "convocação", "publicação", etc.)
+            r'\b(\d+[\d.,]*)\s*(?:ações?|papéis?)\s+(?:(?:ordinárias?|preferenciais?|ON|PN)\s+)?(?:da?\s+)?([A-Z][A-Za-zÀ-ú\s]+?)(?:\s*[-–]\s*|\s*\()?([A-Z]{4}\d{1,2})?',
+            r'\b([A-Z]{4}\d{1,2})\b',  # Tickers de ações brasileiras (PETR4, VALE3, etc.)
+            r'\bações?\s+([A-Z]{4}\d{1,2})\b',
+            r'\bações?\s+(?:da|do|de)\s+([A-Z][A-Za-zÀ-ú\s]+)',
+        ],
+        "CRA": [
+            # CRA específico - não captura "democracia", etc.
+            r'\bCRA[s]?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\bCertificados?\s+de\s+Recebíveis?\s+do\s+Agronegócio\b',
+        ],
+        "CRI": [
+            # CRI específico - não captura "descrição", "escrita", etc.
+            r'\bCRI[s]?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\bCertificados?\s+de\s+Recebíveis?\s+Imobiliários?\b',
+        ],
+        "debênture": [
+            r'\bdebêntures?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\bdebentures?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\b(\d+)\s*debêntures?\b',
+        ],
+        "cota_fundo": [
+            # Cotas de fundos - padrões específicos
+            r'\bcotas?\s+(?:do|da|de)\s+(?:fundo\s+)?([A-Za-zÀ-ú\s]+)',
+            r'\b(FII|FIM|FIC|FICFI[AM]|ETF)\s*[:\s]*([A-Za-zÀ-ú\s]+)?',
+            r'\bfundo\s+(?:de\s+)?(?:investimento\s+)?([A-Za-zÀ-ú\s]+)',
+        ],
+        "CDB": [
+            r'\bCDB[s]?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\bCertificados?\s+de\s+Depósitos?\s+Bancários?\b',
+        ],
+        "LCI": [
+            r'\bLCI[s]?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\bLetras?\s+de\s+Créditos?\s+Imobiliários?\b',
+        ],
+        "LCA": [
+            r'\bLCA[s]?\b(?:\s+(?:da|do|de)\s+)?([A-Za-zÀ-ú\s]+)?',
+            r'\bLetras?\s+de\s+Créditos?\s+do\s+Agronegócio\b',
+        ],
+        "titulo_publico": [
+            r'\bTesouro\s+(?:Direto|Selic|IPCA|Prefixado)\b[^,\n]*',
+            r'\bNTN[-\s]?[BF]\b',
+            r'\bLFT\b',
+            r'\bLTN\b',
+        ],
     }
+    
+    # Padrões para extrair valores monetários associados a ativos
+    VALUE_PATTERNS = [
+        r'R\$\s*([\d.,]+(?:\s*(?:mil|milhão|milhões|bi|bilhão|bilhões))?)',
+        r'(?:valor|montante|total)[:\s]+R?\$?\s*([\d.,]+)',
+        r'(?:no valor de|equivalente a|correspondente a)\s*R?\$?\s*([\d.,]+)',
+    ]
+    
+    # Padrões para extrair quantidades
+    QUANTITY_PATTERNS = [
+        r'(\d+[\d.,]*)\s*(?:cotas?|ações?|unidades?|títulos?|papéis?)',
+        r'(?:quantidade|volume|total)\s*(?:de)?[:\s]+(\d+[\d.,]*)',
+        r'(\d+[\d.,]*)\s*(?:\(\s*[\w\s]+\s*\))?\s*(?:cotas?|ações?)',
+    ]
+    
+    # Padrões para identificar beneficiários/pessoas
+    BENEFICIARY_PATTERNS = [
+        r'(?:beneficiário|titular|quotista|cotista|herdeiro)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+)',
+        r'(?:em nome de|para|destinado a)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+)',
+        r'([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]+?)(?:\s*[-–]\s*CPF|\s*,\s*(?:brasileiro|nascido))',
+    ]
     
     def __init__(self, config: Optional[RAGConfig] = None):
         """
@@ -328,144 +387,308 @@ class MeetingMinutesAnalyzer:
                 result.meeting_date = match.group()
     
     def _extract_assets_from_text(self, text: str) -> List[Asset]:
-        """Extrai lista de ativos do texto."""
+        """Extrai lista de ativos do texto usando padrões específicos."""
         assets = []
         seen_assets = set()
-        text_lower = text.lower()
         
-        # Procura cada tipo de ativo
-        for asset_type, keywords in self.ASSET_TYPES.items():
-            for keyword in keywords:
-                if keyword in text_lower:
-                    # Tenta extrair mais contexto sobre o ativo
-                    pattern = rf"({keyword}[^,.\n]*)"
-                    matches = re.finditer(pattern, text, re.IGNORECASE)
+        # Procura cada tipo de ativo usando padrões REGEX específicos
+        for asset_type, patterns in self.ASSET_PATTERNS.items():
+            for pattern in patterns:
+                try:
+                    matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
                     
                     for match in matches:
-                        asset_text = match.group(1).strip()
+                        full_match = match.group(0).strip()
+                        
+                        # Ignora matches muito curtos ou que são claramente errados
+                        if len(full_match) < 3:
+                            continue
                         
                         # Normaliza para evitar duplicatas
-                        normalized = asset_text.lower()[:50]
+                        normalized = full_match.lower()[:50]
                         if normalized in seen_assets:
                             continue
+                        
+                        # Validação adicional para evitar falsos positivos
+                        if not self._is_valid_asset(full_match, asset_type):
+                            continue
+                        
                         seen_assets.add(normalized)
                         
                         asset = Asset(
-                            name=asset_text[:200],
+                            name=full_match[:200],
                             asset_type=asset_type
                         )
                         
-                        # Tenta extrair ticker (código de 4-6 letras/números)
-                        ticker_match = re.search(
-                            r'\b([A-Z]{4}[0-9]{1,2}|[A-Z]{3,4}[0-9]?)\b',
-                            asset_text
-                        )
-                        if ticker_match:
-                            asset.ticker = ticker_match.group(1)
+                        # Extrai ticker se disponível nos grupos
+                        if match.lastindex and match.lastindex >= 1:
+                            potential_ticker = match.group(1) if match.group(1) else None
+                            if potential_ticker and re.match(r'^[A-Z]{4}\d{1,2}$', potential_ticker):
+                                asset.ticker = potential_ticker
                         
-                        # Tenta extrair emissor
+                        # Busca ticker separadamente
+                        if not asset.ticker:
+                            ticker_match = re.search(r'\b([A-Z]{4}\d{1,2})\b', full_match)
+                            if ticker_match:
+                                asset.ticker = ticker_match.group(1)
+                        
+                        # Extrai emissor
                         issuer_match = re.search(
-                            r'(?:emiss[ãa]o|emitid[oa]|emissora?)[:\s]+([A-Za-záéíóúâêîôûãõç\s]+)',
-                            asset_text, re.IGNORECASE
+                            r'(?:emiss[ãa]o|emitid[oa]|emissora?|da|do)[:\s]+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-Za-záéíóúâêîôûãõç\s]{2,50})',
+                            full_match, re.IGNORECASE
                         )
                         if issuer_match:
-                            asset.issuer = issuer_match.group(1).strip()[:100]
+                            issuer = issuer_match.group(1).strip()
+                            # Filtra emissores que são palavras comuns
+                            if issuer.lower() not in ['de', 'da', 'do', 'que', 'para', 'com']:
+                                asset.issuer = issuer[:100]
                         
-                        # Tenta extrair série
+                        # Extrai série
                         series_match = re.search(
-                            r'(?:série|series)[:\s]+(\S+)',
-                            asset_text, re.IGNORECASE
+                            r'(?:série|series|sr\.?)[:\s]+([A-Z0-9]+)',
+                            full_match, re.IGNORECASE
                         )
                         if series_match:
                             asset.series = series_match.group(1)
                         
                         assets.append(asset)
+                        
+                except re.error as e:
+                    logger.warning(f"Erro no padrão regex {pattern}: {e}")
+                    continue
         
         return assets
+    
+    def _is_valid_asset(self, text: str, asset_type: str) -> bool:
+        """Valida se o texto é realmente um ativo válido."""
+        text_lower = text.lower()
+        
+        # Lista de palavras que indicam falsos positivos
+        false_positives = {
+            "ação": [
+                "convocação", "publicação", "declaração", "deliberação",
+                "manifestação", "certificação", "autenticação", "comunicação",
+                "votação", "notificação", "ratificação", "retificação",
+                "identificação", "qualificação", "participação", "apresentação",
+                "descrição", "inscrição", "prescrição", "transcrição",
+                "atribuição", "distribuição", "contribuição", "constituição",
+            ],
+            "CRI": [
+                "descrição", "inscrição", "prescrição", "transcrição",
+                "escrita", "escritura", "manuscrito", "escrito",
+            ],
+            "cota_fundo": [
+                "certificamos", "certifico", "verificamos", "verifico",
+                "fica sujeito", "ficamos",
+            ],
+        }
+        
+        # Verifica se o texto contém palavras que indicam falsos positivos
+        if asset_type in false_positives:
+            for fp in false_positives[asset_type]:
+                if fp in text_lower:
+                    return False
+        
+        # Validações específicas por tipo
+        if asset_type == "ação":
+            # Ação deve estar em contexto financeiro
+            financial_context = [
+                "r$", "valor", "quantidade", "cotas", "ticker",
+                "bolsa", "b3", "bovespa", "capital", "patrimônio",
+                "resgate", "aplicação", "investimento", "carteira"
+            ]
+            has_financial_context = any(ctx in text_lower for ctx in financial_context)
+            # Se o texto é curto, precisa ter contexto financeiro
+            if len(text) < 30 and not has_financial_context:
+                # Verifica se parece ser um ticker
+                if not re.search(r'\b[A-Z]{4}\d{1,2}\b', text):
+                    return False
+        
+        return True
     
     def _extract_quantities_from_text(
         self,
         text: str,
         assets: List[Asset]
     ) -> List[AssetQuantity]:
-        """Extrai quantidades dos ativos do texto."""
+        """Extrai quantidades dos ativos do texto com padrões melhorados."""
         quantities = []
+        seen_values = set()  # Para evitar duplicatas por valor+nome
         
-        # Padrões para extrair números e valores
-        quantity_patterns = [
-            r"(\d+(?:[.,]\d+)*)\s*(?:unidades?|cotas?|ações?)",
-            r"(?:quantidade|volume)[:\s]+(\d+(?:[.,]\d+)*)",
-            r"(?:total\s+de)[:\s]+(\d+(?:[.,]\d+)*)",
-        ]
+        # PADRÃO 1: Tickers com formato completo
+        # Exemplo: "AMER3 — Quantidade Total: 36 unid. Valor unitário R$ 6,14 — Valor Total: R$ 221,04."
+        # ou: "MGLU3 — Quantidade Total: 862 unid. — Valor R$ 7.137,36."
+        ticker_pattern = r'([A-Z]{4,6}\d{1,2})\s*[—–-]\s*Quantidade\s+Total[:\s]*\s*([\d.,]+)\s*unid\.?\s*(?:Valor\s+[Uu]nit[áa]rio\s*R?\$?\s*([\d.,]+))?\s*[—–-]?\s*Valor\s*(?:Total)?[:\s]*\s*R?\$?\s*([\d.,]+)'
         
-        value_patterns = [
-            r"R\$\s*(\d+(?:[.,]\d+)*(?:[.,]\d{2})?)",
-            r"(?:valor\s+(?:nominal|total|unitário))[:\s]+R?\$?\s*(\d+(?:[.,]\d+)*)"
-        ]
-        
-        date_pattern = r"(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})"
-        
-        # Para cada ativo, tenta encontrar quantidades relacionadas
-        for asset in assets:
-            quantity_info = AssetQuantity(asset=asset)
+        for match in re.finditer(ticker_pattern, text, re.IGNORECASE):
+            ticker = match.group(1).upper()
+            quantity_str = match.group(2)
+            unit_price_str = match.group(3)
+            total_value_str = match.group(4)
             
-            # Procura contexto próximo ao ativo
-            asset_keyword = asset.name.split()[0] if asset.name else asset.asset_type
-            
-            # Encontra sentenças que mencionam o ativo
-            sentences = re.split(r'[.;\n]', text)
-            relevant_sentences = [
-                s for s in sentences
-                if asset_keyword.lower() in s.lower()
-            ]
-            
-            context = " ".join(relevant_sentences)
-            
-            if context:
-                quantity_info.raw_text = context[:500]
+            try:
+                quantity = self._parse_brazilian_number(quantity_str)
+                total_value = self._parse_brazilian_number(total_value_str)
+                unit_price = self._parse_brazilian_number(unit_price_str) if unit_price_str else None
                 
-                # Extrai quantidade
-                for pattern in quantity_patterns:
-                    match = re.search(pattern, context, re.IGNORECASE)
-                    if match:
-                        try:
-                            qty_str = match.group(1).replace(".", "").replace(",", ".")
-                            quantity_info.quantity = float(qty_str)
-                            break
-                        except ValueError:
-                            pass
+                # Ignora valores muito pequenos
+                if total_value < 1:
+                    continue
                 
-                # Extrai valores
-                for pattern in value_patterns:
-                    matches = re.findall(pattern, context, re.IGNORECASE)
-                    if matches:
-                        try:
-                            # Pega o maior valor encontrado como total
-                            values = []
-                            for m in matches:
-                                val_str = m.replace(".", "").replace(",", ".")
-                                values.append(float(val_str))
-                            
-                            if values:
-                                quantity_info.total_value = max(values)
-                                if len(values) > 1:
-                                    quantity_info.unit_price = min(values)
-                        except ValueError:
-                            pass
+                # Cria chave única: ticker + valor total (para evitar duplicatas)
+                unique_key = f"{ticker}_{total_value:.2f}"
+                if unique_key in seen_values:
+                    continue
+                seen_values.add(unique_key)
                 
-                # Extrai datas
-                dates = re.findall(date_pattern, context)
-                if len(dates) >= 1:
-                    quantity_info.issue_date = dates[0]
-                if len(dates) >= 2:
-                    quantity_info.maturity_date = dates[1]
-            
-            # Só adiciona se encontrou alguma informação útil
-            if (quantity_info.quantity or quantity_info.total_value or
-                quantity_info.unit_price or quantity_info.nominal_value):
+                # Determina o tipo pelo ticker
+                asset_type = self._determine_asset_type_by_ticker(ticker)
+                
+                asset = Asset(
+                    name=ticker,
+                    asset_type=asset_type,
+                    ticker=ticker
+                )
+                
+                quantity_info = AssetQuantity(
+                    asset=asset,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    total_value=total_value,
+                    raw_text=match.group(0)
+                )
+                
                 quantities.append(quantity_info)
+                
+            except ValueError:
+                continue
+        
+        # PADRÃO 2: Nomes de fundos com valores
+        # Exemplo: "FIM CRPR: R$ 224.567,89" ou "Tesouro Selic: R$ 3.456,78"
+        asset_value_pattern = r'([A-Z][A-Za-zÀ-ú\s]{2,30}?):\s*R\$\s*([\d.,]+)'
+        
+        for match in re.finditer(asset_value_pattern, text):
+            asset_name = match.group(1).strip()
+            value_str = match.group(2)
+            
+            try:
+                value = self._parse_brazilian_number(value_str)
+                
+                # Ignora valores muito pequenos
+                if value < 10:
+                    continue
+                
+                # Ignora nomes genéricos
+                if asset_name.lower().strip() in ['valor', 'valor total', 'total', 'soma', 'quantidade']:
+                    continue
+                
+                # Ignora se já tem ticker extraído com mesmo valor aproximado
+                unique_key = f"{asset_name.lower()[:20]}_{value:.2f}"
+                if unique_key in seen_values:
+                    continue
+                seen_values.add(unique_key)
+                
+                asset_type = self._determine_asset_type(asset_name)
+                
+                asset = Asset(name=asset_name, asset_type=asset_type)
+                
+                quantity_info = AssetQuantity(
+                    asset=asset,
+                    total_value=value,
+                    raw_text=match.group(0)
+                )
+                
+                quantities.append(quantity_info)
+                
+            except ValueError:
+                continue
         
         return quantities
+    
+    def _determine_asset_type_by_ticker(self, ticker: str) -> str:
+        """Determina o tipo de ativo pelo formato do ticker."""
+        ticker = ticker.upper()
+        
+        # BDRs terminam em 31, 32, 33, 34, 35
+        if ticker[-2:] in ['31', '32', '33', '34', '35']:
+            return "BDR"
+        
+        # ETFs terminam em 11
+        if ticker.endswith('11'):
+            return "ETF"
+        
+        # Ações ordinárias terminam em 3
+        if ticker.endswith('3'):
+            return "ação"
+        
+        # Ações preferenciais terminam em 4
+        if ticker.endswith('4'):
+            return "ação"
+        
+        # Units terminam em 11 (já tratado como ETF) ou sem número
+        # FIIs terminam em 11 (também já tratado)
+        
+        return "ação"  # Default para tickers
+    
+    def _parse_brazilian_number(self, value_str: str) -> float:
+        """Converte string de número brasileiro para float."""
+        # Remove espaços
+        value_str = value_str.strip()
+        
+        # Trata números no formato brasileiro: 1.234.567,89
+        # Conta quantos pontos e vírgulas existem
+        dots = value_str.count('.')
+        commas = value_str.count(',')
+        
+        if commas == 1 and dots >= 1:
+            # Formato brasileiro: 1.234.567,89
+            value_str = value_str.replace('.', '').replace(',', '.')
+        elif commas == 1 and dots == 0:
+            # Pode ser 1234,56 (brasileiro) ou 1,234 (americano)
+            # Se tem 2 dígitos depois da vírgula, é brasileiro
+            parts = value_str.split(',')
+            if len(parts[1]) == 2:
+                value_str = value_str.replace(',', '.')
+            else:
+                # Provavelmente é americano (milhar)
+                value_str = value_str.replace(',', '')
+        elif dots == 1 and commas == 0:
+            # Pode ser 1234.56 (americano) ou 1.234 (brasileiro milhar)
+            parts = value_str.split('.')
+            if len(parts[1]) == 3:
+                # É milhar brasileiro
+                value_str = value_str.replace('.', '')
+        else:
+            # Remove todos os pontos (milhares)
+            value_str = value_str.replace('.', '').replace(',', '.')
+        
+        return float(value_str)
+    
+    def _determine_asset_type(self, name: str) -> str:
+        """Determina o tipo de ativo pelo nome."""
+        name_upper = name.upper()
+        
+        # Fundos - padrões comuns
+        if any(x in name_upper for x in ['FIM', 'FIC', 'FICFI', 'FII', 'TNB', 'INSTITUCIONAL', 'MULTIMERCADO']):
+            return "cota_fundo"
+        elif 'TESOURO' in name_upper or 'NTN' in name_upper or 'LFT' in name_upper:
+            return "titulo_publico"
+        elif 'CRA' in name_upper:
+            return "CRA"
+        elif 'CRI' in name_upper:
+            return "CRI"
+        elif 'CDB' in name_upper:
+            return "CDB"
+        elif 'LCI' in name_upper:
+            return "LCI"
+        elif 'LCA' in name_upper:
+            return "LCA"
+        elif 'DEBENTURE' in name_upper or 'DEBÊNTURE' in name_upper:
+            return "debênture"
+        elif any(x in name_upper for x in ['AÇÃO', 'AÇÕES', 'ACOES']):
+            return "ação"
+        else:
+            return "outros"
     
     def get_highlights(self, result: MeetingMinutesResult) -> Dict[str, List[Tuple[str, List[int]]]]:
         """

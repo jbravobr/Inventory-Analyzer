@@ -257,22 +257,58 @@ class MeetingMinutesReportGenerator:
             f"Nome do Fundo: {result.fund_name or 'Não identificado'}",
             f"Data da Reunião: {result.meeting_date or 'Não identificada'}",
             "",
-            f"Ativos identificados: {len(result.assets)}",
-            f"Quantidades extraídas: {len(result.asset_quantities)}",
-            "",
         ]
         
-        # Resumo por tipo de ativo
+        # Resumo por tipo de ativo (da lista de ativos identificados)
         if result.assets:
-            lines.append("Ativos por tipo:")
-            by_type: Dict[str, int] = {}
+            lines.append(f"ATIVOS IDENTIFICADOS: {len(result.assets)}")
+            lines.append("")
+            
+            by_type: Dict[str, List] = {}
             for asset in result.assets:
-                asset_type = asset.asset_type or "Outros"
-                by_type[asset_type] = by_type.get(asset_type, 0) + 1
+                asset_type = asset.asset_type or "outros"
+                if asset_type not in by_type:
+                    by_type[asset_type] = []
+                by_type[asset_type].append(asset)
             
-            for asset_type, count in sorted(by_type.items()):
-                lines.append(f"  - {asset_type}: {count}")
+            for asset_type, assets in sorted(by_type.items()):
+                lines.append(f"  {asset_type.upper()}: {len(assets)}")
+                for asset in assets:
+                    asset_name = asset.ticker or asset.name[:40] if asset.name else "N/A"
+                    lines.append(f"    • {asset_name}")
             
+            lines.append("")
+        
+        # Resumo por tipo das quantidades/valores extraídos
+        if result.asset_quantities:
+            lines.append(f"VALORES EXTRAÍDOS: {len(result.asset_quantities)}")
+            lines.append("")
+            
+            # Agrupa quantidades por tipo
+            qty_by_type: Dict[str, List] = {}
+            total_by_type: Dict[str, float] = {}
+            
+            for qty in result.asset_quantities:
+                asset_type = qty.asset.asset_type or "outros"
+                if asset_type not in qty_by_type:
+                    qty_by_type[asset_type] = []
+                    total_by_type[asset_type] = 0.0
+                qty_by_type[asset_type].append(qty)
+                if qty.total_value:
+                    total_by_type[asset_type] += qty.total_value
+            
+            grand_total = 0.0
+            for asset_type, quantities in sorted(qty_by_type.items()):
+                type_total = total_by_type.get(asset_type, 0)
+                grand_total += type_total
+                lines.append(f"  {asset_type.upper()}: {len(quantities)} item(s) - R$ {type_total:,.2f}")
+                for qty in quantities:
+                    asset_name = qty.asset.name[:35] if qty.asset.name else "N/A"
+                    value_str = f"R$ {qty.total_value:,.2f}" if qty.total_value else "N/A"
+                    lines.append(f"    • {asset_name}... = {value_str}")
+            
+            lines.append("")
+            lines.append(f"  TOTAL GERAL: R$ {grand_total:,.2f}")
             lines.append("")
         
         lines.extend([

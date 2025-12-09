@@ -425,7 +425,7 @@ def extract(pdf_path: str, output: str):
     with open(output_file, 'w', encoding='utf-8') as f:
         for page in document.pages:
             f.write(f"{'='*60}\n")
-            f.write(f"PÁGINA {page.page_number}\n")
+            f.write(f"PÁGINA {page.number}\n")
             f.write(f"{'='*60}\n\n")
             f.write(page.text or "(sem texto)")
             f.write("\n\n")

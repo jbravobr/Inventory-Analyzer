@@ -10,38 +10,43 @@
 # ============================================
 
 # CLÁUSULA A - IDENTIFICAÇÃO DOS ATIVOS ENVOLVIDOS
-- Localizar e listar TODOS os ativos mencionados na ata
-- Identificar AÇÕES mencionadas (ticker, empresa emissora)
-- Identificar CRA (Certificado de Recebíveis do Agronegócio)
-- Identificar CRI (Certificado de Recebíveis Imobiliários)
-- Identificar DEBÊNTURES mencionadas (série, emissora)
-- Identificar COTAS DE FUNDO (FII, FIM, FIC, ETF)
-- Identificar CDB (Certificado de Depósito Bancário)
-- Identificar LCI (Letra de Crédito Imobiliário)
-- Identificar LCA (Letra de Crédito do Agronegócio)
-- Identificar TÍTULOS PÚBLICOS (Tesouro Direto, NTN, LFT, LTN)
-- Localizar outros valores mobiliários mencionados
-- Para cada ativo, identificar o código/ticker se disponível
-- Verificar a instituição emissora ou custodiante
+
+# Queries específicas por tipo de ativo
+Identifique todos os ativos financeiros mencionados com seus respectivos valores em R$
+Liste os fundos de investimento (FIM, FIC, FICFIA, FICFIM) com seus valores
+Quais CRA (Certificado de Recebíveis do Agronegócio) são mencionados com valores?
+Quais CRI (Certificado de Recebíveis Imobiliários) aparecem no documento?
+Identifique as debêntures com emissor, série e valores
+Liste todos os títulos públicos (Tesouro Selic, Tesouro IPCA, NTN, LFT, LTN)
+Quais CDB são mencionados com seus valores?
+Identifique LCI e LCA com respectivos valores
+Liste as ações (papéis) com tickers como PETR4, VALE3 e quantidades
+Identifique cotas de fundos imobiliários (FII) com valores
+
+# Busca por padrão NOME: R$ VALOR
+Extraia todos os ativos no formato NOME: R$ VALOR
+Liste todos os valores monetários associados a cada tipo de ativo
 
 # CLÁUSULA B - QUANTIDADE E VALORES DOS ATIVOS
-- Localizar a QUANTIDADE de cada ativo mencionado
-- Identificar o número total de ações
-- Identificar o volume total de cada valor mobiliário
-- Localizar o valor nominal ou de face dos títulos
-- Identificar o valor total a ser distribuído/emitido
-- Verificar preço unitário se mencionado
-- Localizar data de emissão e vencimento quando aplicável
-- Identificar série e classe dos ativos se informado
+
+Qual o valor total de cada tipo de ativo?
+Identifique a quantidade de cotas para cada fundo
+Quais são os valores nominais ou de face dos títulos?
+Liste os montantes por beneficiário ou titular
+Identifique o valor total a ser distribuído ou resgatado
+
+# INFORMAÇÕES POR BENEFICIÁRIO/PESSOA
+
+Liste os ativos separados por quotista ou beneficiário
+Identifique a divisão dos ativos por pessoa com CPF
+Quais valores correspondem a cada titular mencionado?
 
 # INFORMAÇÕES COMPLEMENTARES
-- Identificar o nome do fundo ou veículo de investimento
-- Localizar CNPJ do fundo se disponível
-- Identificar o administrador ou gestor
-- Localizar data da reunião/assembleia
-- Identificar os quotistas participantes se mencionados
-- Localizar deliberações aprovadas
-- Identificar votação (quorum, aprovação)
 
-
+Qual o nome completo do fundo de investimento?
+Qual o CNPJ do fundo?
+Quem é o administrador do fundo?
+Qual a data da reunião ou assembleia?
+Quais foram as deliberações aprovadas?
+Identifique o quorum e resultado das votações
 
