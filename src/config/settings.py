@@ -116,6 +116,71 @@ class LegalTermsConfig:
 
 
 @dataclass
+class CloudProviderConfig:
+    """Configuração de um provedor cloud específico."""
+    
+    api_key_env: str = ""
+    embedding_model: str = ""
+    generation_model: str = ""
+    max_tokens: int = 2000
+    temperature: float = 0.1
+    
+    @property
+    def api_key(self) -> Optional[str]:
+        """Obtém a API key do ambiente."""
+        if self.api_key_env:
+            return os.getenv(self.api_key_env)
+        return None
+
+
+@dataclass
+class CloudProvidersConfig:
+    """Configurações dos provedores cloud disponíveis."""
+    
+    openai: CloudProviderConfig = field(default_factory=lambda: CloudProviderConfig(
+        api_key_env="OPENAI_API_KEY",
+        embedding_model="text-embedding-3-small",
+        generation_model="gpt-4o-mini",
+        max_tokens=2000,
+        temperature=0.1
+    ))
+    anthropic: CloudProviderConfig = field(default_factory=lambda: CloudProviderConfig(
+        api_key_env="ANTHROPIC_API_KEY",
+        embedding_model="",
+        generation_model="claude-3-haiku-20240307",
+        max_tokens=2000,
+        temperature=0.1
+    ))
+
+
+@dataclass
+class LLMExtractionConfig:
+    """Configurações de extração via LLM (complementa regex)."""
+    
+    enabled: bool = False
+    provider: str = "openai"
+    merge_strategy: str = "regex_priority"  # regex_priority | llm_priority | union
+    fallback_to_regex: bool = True
+    
+    # Quais tipos de dados o LLM pode extrair
+    extract_valores_monetarios: bool = False    # R$ - regex é mais preciso
+    extract_quantidades: bool = False           # Números - regex é mais preciso
+    extract_nomes_pessoas: bool = True          # LLM entende contexto
+    extract_datas_relativas: bool = True        # "mês passado" - LLM entende
+    extract_referencias_contextuais: bool = True  # "conforme acima" - LLM entende
+    extract_valores_por_extenso: bool = True    # "trinta mil reais" - LLM entende
+
+
+@dataclass
+class LLMSummarizationConfig:
+    """Configurações de sumarização via LLM."""
+    
+    enabled: bool = False
+    generate_executive_summary: bool = False
+    generate_insights: bool = False
+
+
+@dataclass
 class RAGGenerationConfig:
     """Configurações de geração RAG."""
     
@@ -124,6 +189,11 @@ class RAGGenerationConfig:
     generate_answers: bool = False
     max_tokens: int = 500
     temperature: float = 0.1
+    
+    # Configurações de LLM cloud
+    cloud_providers: CloudProvidersConfig = field(default_factory=CloudProvidersConfig)
+    llm_extraction: LLMExtractionConfig = field(default_factory=LLMExtractionConfig)
+    llm_summarization: LLMSummarizationConfig = field(default_factory=LLMSummarizationConfig)
 
 
 @dataclass
@@ -217,7 +287,40 @@ class Settings:
         
         if "rag" in data:
             rag_data = data["rag"]
-            generation_config = RAGGenerationConfig(**rag_data.get("generation", {}))
+            generation_data = rag_data.get("generation", {})
+            
+            # Parse cloud providers
+            cloud_providers_data = generation_data.get("cloud_providers", {})
+            openai_config = CloudProviderConfig(**cloud_providers_data.get("openai", {})) if "openai" in cloud_providers_data else CloudProviderConfig(
+                api_key_env="OPENAI_API_KEY",
+                embedding_model="text-embedding-3-small",
+                generation_model="gpt-4o-mini"
+            )
+            anthropic_config = CloudProviderConfig(**cloud_providers_data.get("anthropic", {})) if "anthropic" in cloud_providers_data else CloudProviderConfig(
+                api_key_env="ANTHROPIC_API_KEY",
+                generation_model="claude-3-haiku-20240307"
+            )
+            cloud_providers = CloudProvidersConfig(openai=openai_config, anthropic=anthropic_config)
+            
+            # Parse LLM extraction config
+            llm_extraction_data = generation_data.get("llm_extraction", {})
+            llm_extraction = LLMExtractionConfig(**llm_extraction_data) if llm_extraction_data else LLMExtractionConfig()
+            
+            # Parse LLM summarization config
+            llm_summarization_data = generation_data.get("llm_summarization", {})
+            llm_summarization = LLMSummarizationConfig(**llm_summarization_data) if llm_summarization_data else LLMSummarizationConfig()
+            
+            # Remove nested configs before passing to RAGGenerationConfig
+            gen_data_clean = {k: v for k, v in generation_data.items() 
+                           if k not in ["cloud_providers", "llm_extraction", "llm_summarization"]}
+            
+            generation_config = RAGGenerationConfig(
+                **gen_data_clean,
+                cloud_providers=cloud_providers,
+                llm_extraction=llm_extraction,
+                llm_summarization=llm_summarization
+            )
+            
             settings.rag = RAGConfig(
                 enabled=rag_data.get("enabled", True),
                 generation=generation_config

@@ -42,6 +42,8 @@ class Context:
     def __init__(self):
         self.mode_override: Optional[str] = None
         self.allow_download: Optional[bool] = None
+        self.use_cloud_generation: Optional[bool] = None
+        self.use_cloud_embeddings: Optional[bool] = None
 
 pass_context = click.make_pass_decorator(Context, ensure=True)
 
@@ -71,18 +73,25 @@ def get_active_profile() -> str:
     return "inventory"
 
 
-def _init_mode_manager(mode_override: Optional[str], allow_download: Optional[bool]):
+def _init_mode_manager(
+    mode_override: Optional[str],
+    allow_download: Optional[bool],
+    use_cloud_generation: Optional[bool] = None,
+    use_cloud_embeddings: Optional[bool] = None
+):
     """Inicializa o ModeManager com as opções da CLI."""
     from config.settings import get_settings
     from config.mode_manager import init_mode_manager
     
     settings = get_settings()
     
-    # Inicializa o ModeManager
+    # Inicializa o ModeManager com todas as opções
     mode_mgr = init_mode_manager(
         config=settings.system,
         cli_override=mode_override,
-        allow_download_override=allow_download
+        allow_download_override=allow_download,
+        use_cloud_generation_override=use_cloud_generation,
+        use_cloud_embeddings_override=use_cloud_embeddings
     )
     
     # Log do modo ativo
@@ -121,8 +130,18 @@ def print_banner(profile: str = "inventory", mode: Optional[str] = None):
               help='Modo híbrido: tenta online, fallback para offline')
 @click.option('--allow-download/--no-download', 'allow_download', default=None,
               help='Permite/bloqueia download de modelos (override)')
+@click.option('--use-cloud-generation/--no-cloud-generation', 'use_cloud_gen', default=None,
+              help='Usa LLM cloud para extração complementar (requer --online)')
+@click.option('--use-cloud-embeddings/--no-cloud-embeddings', 'use_cloud_emb', default=None,
+              help='Usa embeddings cloud para busca semântica (requer --online)')
 @pass_context
-def cli(ctx: Context, mode: str, allow_download: Optional[bool]):
+def cli(
+    ctx: Context,
+    mode: str,
+    allow_download: Optional[bool],
+    use_cloud_gen: Optional[bool],
+    use_cloud_emb: Optional[bool]
+):
     """
     Document Analyzer - Análise de Documentos Jurídicos/Financeiros.
     
@@ -133,19 +152,28 @@ def cli(ctx: Context, mode: str, allow_download: Optional[bool]):
       --online    Permite downloads do HuggingFace e APIs cloud
       --hybrid    Tenta online, usa cache local se falhar
     
+    EXTRAÇÃO LLM (modo online):
+    
+    \b
+      --use-cloud-generation    Usa LLM cloud para complementar regex
+      --use-cloud-embeddings    Usa embeddings cloud para busca semântica
+    
     EXEMPLOS:
     
     \b
       python run.py analyze documento.pdf
       python run.py --online analyze documento.pdf --profile meeting_minutes
+      python run.py --online --use-cloud-generation analyze documento.pdf
       python run.py --hybrid --allow-download analyze documento.pdf
     """
     # Armazena opções no contexto
     ctx.mode_override = mode
     ctx.allow_download = allow_download
+    ctx.use_cloud_generation = use_cloud_gen
+    ctx.use_cloud_embeddings = use_cloud_emb
     
     # Inicializa ModeManager com as opções
-    _init_mode_manager(mode, allow_download)
+    _init_mode_manager(mode, allow_download, use_cloud_gen, use_cloud_emb)
 
 
 @cli.command()

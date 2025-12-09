@@ -129,13 +129,67 @@ rag:
     use_mmr: true
     mmr_diversity: 0.3
   
-  # Generation OFFLINE
+  # ============================================
+  # GERAÇÃO (local e cloud)
+  # ============================================
+  # Por padrão: usa apenas REGEX para extração (generate_answers: false)
+  # Com generate_answers: true E modo online + cloud habilitado:
+  #   - LLM complementa regex para dados que regex não captura
+  #   - Regex tem PRIORIDADE para valores numéricos (mais preciso)
+  #   - LLM captura contexto, referências, valores por extenso
   generation:
     mode: "local"
     local_model: "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
-    generate_answers: false  # Desabilitado por padrão (usa apenas retrieval)
+    generate_answers: false  # PADRÃO: false (usa apenas regex)
     max_tokens: 500
     temperature: 0.1
+    
+    # ============================================
+    # Provedores Cloud (requer modo online)
+    # ============================================
+    # Para habilitar: system.mode: "online" + system.online.use_cloud_generation: true
+    cloud_providers:
+      openai:
+        api_key_env: "OPENAI_API_KEY"          # Variável de ambiente com a API key
+        embedding_model: "text-embedding-3-small"
+        generation_model: "gpt-4o-mini"
+        max_tokens: 2000
+        temperature: 0.1
+      anthropic:
+        api_key_env: "ANTHROPIC_API_KEY"
+        embedding_model: ""                     # Anthropic não tem embeddings
+        generation_model: "claude-3-haiku-20240307"
+        max_tokens: 2000
+        temperature: 0.1
+    
+    # ============================================
+    # Extração via LLM (complementa Regex)
+    # ============================================
+    # IMPORTANTE: Regex SEMPRE executa primeiro
+    # LLM só executa se: enabled: true E modo online E cloud habilitado
+    # Merge: regex_priority = regex tem prioridade para valores numéricos
+    llm_extraction:
+      enabled: false                            # PADRÃO: false
+      provider: "openai"                        # openai | anthropic
+      merge_strategy: "regex_priority"          # regex_priority | llm_priority | union
+      fallback_to_regex: true                   # Se LLM falhar, usa só regex
+      
+      # Quais tipos de dados o LLM pode extrair
+      # Regex é MELHOR para valores estruturados (true = LLM ajuda)
+      extract_valores_monetarios: false         # R$ - regex é mais preciso
+      extract_quantidades: false                # Números - regex é mais preciso
+      extract_nomes_pessoas: true               # LLM entende contexto
+      extract_datas_relativas: true             # "mês passado" → LLM entende
+      extract_referencias_contextuais: true     # "conforme acima" → LLM entende
+      extract_valores_por_extenso: true         # "trinta mil" → LLM converte
+    
+    # ============================================
+    # Sumarização via LLM (opcional)
+    # ============================================
+    llm_summarization:
+      enabled: false                            # PADRÃO: false
+      generate_executive_summary: false         # Resumo executivo no relatório
+      generate_insights: false                  # Análises e observações
 
 # Validação de texto
 validation:

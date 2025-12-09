@@ -115,6 +115,12 @@ python run.py --online analyze documento.pdf
 
 # Com download permitido explicitamente
 python run.py --online --allow-download analyze documento.pdf
+
+# Com extração LLM cloud (GPT-4, Claude)
+python run.py --online --use-cloud-generation analyze documento.pdf
+
+# Com embeddings cloud (OpenAI)
+python run.py --online --use-cloud-embeddings analyze documento.pdf
 ```
 
 ### Comportamento
@@ -346,6 +352,75 @@ Saída exemplo:
 
 ---
 
+## Extração LLM Cloud (modo online)
+
+### Visão Geral
+
+Quando em modo online, você pode habilitar extração complementar via LLM cloud (GPT-4, Claude). O LLM **complementa** o regex, não substitui.
+
+### Comparativo: Regex vs LLM
+
+| Dado | Regex | LLM | Usar |
+|------|-------|-----|------|
+| `PETR4 = R$ 32,50` | ✅ Preciso | ✅ Captura | Regex |
+| `trinta mil reais` | ❌ Não captura | ✅ Converte para 30000 | LLM |
+| `conforme item anterior` | ❌ Não entende | ✅ Infere contexto | LLM |
+| `valor aproximado de 1 milhão` | ❌ Parcial | ✅ Entende | LLM |
+
+### Configuração
+
+**config.yaml:**
+```yaml
+system:
+  mode: "online"
+  online:
+    use_cloud_generation: true   # Habilita LLM cloud
+
+rag:
+  generation:
+    generate_answers: true       # Necessário para LLM funcionar
+    
+    llm_extraction:
+      enabled: true              # Habilita extração LLM
+      provider: "openai"         # openai | anthropic
+      merge_strategy: "regex_priority"  # Regex tem prioridade
+    
+    cloud_providers:
+      openai:
+        api_key_env: "OPENAI_API_KEY"
+        generation_model: "gpt-4o-mini"
+```
+
+**Configuração de API Key:**
+
+Crie um arquivo `.env` na raiz do projeto:
+```env
+OPENAI_API_KEY=sk-proj-sua-chave-aqui
+```
+
+Ou defina a variável de ambiente (PowerShell):
+```powershell
+$env:OPENAI_API_KEY = "sk-proj-..."
+```
+
+**CLI:**
+```bash
+# Executa com LLM cloud (API key deve estar configurada)
+python run.py --online --use-cloud-generation analyze documento.pdf
+```
+
+> 📖 Veja detalhes completos sobre API keys no README.md, seção "Configuração de API Keys".
+
+### Estratégias de Merge
+
+| Estratégia | Descrição | Quando Usar |
+|------------|-----------|-------------|
+| `regex_priority` | Regex tem prioridade para valores numéricos | **RECOMENDADO** |
+| `llm_priority` | LLM tem prioridade | Menos preciso para números |
+| `union` | Une todos os resultados | Pode ter duplicatas |
+
+---
+
 ## Arquitetura
 
 ### ModeManager
@@ -356,6 +431,7 @@ O componente `ModeManager` (`src/config/mode_manager.py`) é responsável por:
 2. **Configurar ambiente**: Define variáveis `TRANSFORMERS_OFFLINE`, etc.
 3. **Fornecer API**: Para outros módulos consultarem o modo atual
 4. **Testar conectividade**: Para modo HYBRID
+5. **Controlar uso de cloud**: `use_cloud_generation`, `use_cloud_embeddings`
 
 ```python
 from config.mode_manager import get_mode_manager
@@ -368,6 +444,10 @@ if mode_mgr.is_offline:
 if mode_mgr.allow_downloads:
     # Pode tentar baixar modelo
     pass
+
+if mode_mgr.use_cloud_generation:
+    # Pode usar LLM cloud
+    print("Extração LLM habilitada")
 ```
 
 ### Fluxo de Inicialização

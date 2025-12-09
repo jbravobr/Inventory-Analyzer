@@ -5,12 +5,15 @@ __pycache__/
 
 # Ambientes virtuais
 venv/
-.env/
 .venv/
 ENV/
 env/
 env.bak/
 venv.bak/
+
+# Arquivos de configuração sensíveis (API keys)
+.env
+*.env.local
 
 # Saídas e dados gerados
 output/

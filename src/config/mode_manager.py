@@ -77,6 +77,7 @@ class ModeManager:
     - Configurar variáveis de ambiente apropriadas
     - Fornecer API para outros módulos consultarem o modo
     - Testar conectividade quando necessário
+    - Controlar uso de cloud generation e embeddings
     """
     
     # URLs para teste de conectividade
@@ -87,7 +88,9 @@ class ModeManager:
         self,
         config: Optional[SystemConfig] = None,
         cli_override: Optional[str] = None,
-        allow_download_override: Optional[bool] = None
+        allow_download_override: Optional[bool] = None,
+        use_cloud_generation_override: Optional[bool] = None,
+        use_cloud_embeddings_override: Optional[bool] = None
     ):
         """
         Inicializa o gerenciador de modo.
@@ -96,10 +99,14 @@ class ModeManager:
             config: Configuração do sistema (do config.yaml)
             cli_override: Modo forçado via CLI (--online, --offline, --hybrid)
             allow_download_override: Override para permitir/bloquear downloads
+            use_cloud_generation_override: Override para usar geração cloud
+            use_cloud_embeddings_override: Override para usar embeddings cloud
         """
         self._config = config or SystemConfig()
         self._cli_override = cli_override
         self._allow_download_override = allow_download_override
+        self._use_cloud_generation_override = use_cloud_generation_override
+        self._use_cloud_embeddings_override = use_cloud_embeddings_override
         self._connectivity_tested = False
         self._is_connected = False
         
@@ -172,6 +179,56 @@ class ModeManager:
             self._config.online.use_cloud_embeddings or
             self._config.online.use_cloud_generation
         )
+    
+    @property
+    def use_cloud_generation(self) -> bool:
+        """
+        Verifica se deve usar geração cloud (LLM).
+        
+        Condições:
+        - Não pode estar em modo offline
+        - CLI override tem prioridade
+        - Senão, usa configuração do config.yaml
+        """
+        # CLI override tem prioridade
+        if self._use_cloud_generation_override is not None:
+            # Mesmo com override, não permite em modo offline
+            if self.is_offline and self._use_cloud_generation_override:
+                logger.warning("Geração cloud solicitada mas modo é OFFLINE. Ignorando.")
+                return False
+            return self._use_cloud_generation_override
+        
+        # Em modo offline, nunca usa cloud
+        if self.is_offline:
+            return False
+        
+        # Usa configuração
+        return self._config.online.use_cloud_generation
+    
+    @property
+    def use_cloud_embeddings(self) -> bool:
+        """
+        Verifica se deve usar embeddings cloud.
+        
+        Condições:
+        - Não pode estar em modo offline
+        - CLI override tem prioridade
+        - Senão, usa configuração do config.yaml
+        """
+        # CLI override tem prioridade
+        if self._use_cloud_embeddings_override is not None:
+            # Mesmo com override, não permite em modo offline
+            if self.is_offline and self._use_cloud_embeddings_override:
+                logger.warning("Embeddings cloud solicitados mas modo é OFFLINE. Ignorando.")
+                return False
+            return self._use_cloud_embeddings_override
+        
+        # Em modo offline, nunca usa cloud
+        if self.is_offline:
+            return False
+        
+        # Usa configuração
+        return self._config.online.use_cloud_embeddings
     
     @property
     def models_path(self) -> str:
@@ -303,11 +360,27 @@ class ModeManager:
         
         return status
     
+    def get_cloud_status(self) -> str:
+        """Retorna status das funcionalidades cloud."""
+        if self.is_offline:
+            return "Desabilitado (modo offline)"
+        
+        features = []
+        if self.use_cloud_generation:
+            features.append("Geração LLM")
+        if self.use_cloud_embeddings:
+            features.append("Embeddings")
+        
+        if features:
+            return f"Habilitado: {', '.join(features)}"
+        return "Disponível mas não habilitado"
+    
     def __repr__(self) -> str:
         return (
             f"ModeManager(mode={self._effective_mode.value}, "
             f"downloads={self.allow_downloads}, "
-            f"cloud_apis={self.allow_cloud_apis})"
+            f"cloud_generation={self.use_cloud_generation}, "
+            f"cloud_embeddings={self.use_cloud_embeddings})"
         )
 
 
@@ -326,18 +399,29 @@ def get_mode_manager() -> ModeManager:
 def init_mode_manager(
     config: Optional[SystemConfig] = None,
     cli_override: Optional[str] = None,
-    allow_download_override: Optional[bool] = None
+    allow_download_override: Optional[bool] = None,
+    use_cloud_generation_override: Optional[bool] = None,
+    use_cloud_embeddings_override: Optional[bool] = None
 ) -> ModeManager:
     """
     Inicializa o gerenciador de modo global.
     
     Esta função deve ser chamada uma vez no início da aplicação.
+    
+    Args:
+        config: Configuração do sistema (do config.yaml)
+        cli_override: Modo forçado via CLI (--online, --offline, --hybrid)
+        allow_download_override: Override para permitir/bloquear downloads
+        use_cloud_generation_override: Override para usar geração cloud (--use-cloud-generation)
+        use_cloud_embeddings_override: Override para usar embeddings cloud (--use-cloud-embeddings)
     """
     global _mode_manager
     _mode_manager = ModeManager(
         config=config,
         cli_override=cli_override,
-        allow_download_override=allow_download_override
+        allow_download_override=allow_download_override,
+        use_cloud_generation_override=use_cloud_generation_override,
+        use_cloud_embeddings_override=use_cloud_embeddings_override
     )
     _mode_manager.configure_environment()
     return _mode_manager

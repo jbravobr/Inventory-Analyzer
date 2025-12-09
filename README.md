@@ -541,7 +541,37 @@ rag:
 | `max_tokens` | int | 500 | Limite de tokens na resposta gerada |
 | `temperature` | float | 0.1 | Criatividade: 0.0 = determinístico, 1.0 = criativo |
 
-> ⚡ **Dica de Performance**: Manter `generate_answers: false` é recomendado pois a extração de dados usa regex nos chunks recuperados, não as respostas do LLM.
+> ⚡ **Dica de Performance**: Manter `generate_answers: false` é recomendado para uso offline. Para usar extração LLM cloud, veja a seção "Extração LLM Cloud" abaixo.
+
+---
+
+### 🤖 Extração LLM Cloud (opcional)
+
+Quando em **modo online**, você pode habilitar extração complementar via LLM cloud (GPT-4, Claude). O LLM **complementa** o regex, não substitui.
+
+```yaml
+rag:
+  generation:
+    generate_answers: true   # Habilita geração
+    
+    llm_extraction:
+      enabled: true                        # Habilita extração LLM
+      provider: "openai"                   # openai | anthropic
+      merge_strategy: "regex_priority"     # Regex tem prioridade para números
+      
+    cloud_providers:
+      openai:
+        api_key_env: "OPENAI_API_KEY"
+        generation_model: "gpt-4o-mini"
+```
+
+| Propriedade | Tipo | Padrão | Descrição |
+|-------------|------|--------|-----------|
+| `llm_extraction.enabled` | bool | **false** | Habilita extração via LLM cloud |
+| `llm_extraction.provider` | string | "openai" | `openai` ou `anthropic` |
+| `llm_extraction.merge_strategy` | string | "regex_priority" | Como mesclar resultados |
+| `cloud_providers.*.api_key_env` | string | - | Variável de ambiente com API key |
+| `cloud_providers.*.generation_model` | string | - | Modelo a usar |
 
 ---
 
@@ -701,24 +731,33 @@ meeting_terms:
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  FASE 4: EXTRAÇÃO DE DADOS (Regex + Padrões)                                    │
+│  FASE 4: EXTRAÇÃO DE DADOS (Regex + LLM opcional)                               │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
-│    ┌──────────────┐      ┌──────────────────────────────────────┐               │
-│    │   Chunks     │ ───► │          REGEX PATTERNS              │               │
-│    │ Recuperados  │      │                                      │               │
-│    └──────────────┘      │  • CPF: \d{3}\.\d{3}\.\d{3}-\d{2}    │               │
-│                          │  • CNPJ: \d{2}\.\d{3}\.../\d{4}-\d{2}│               │
-│                          │  • Valores: R\$\s*[\d.,]+            │               │
-│                          │  • Ativos: CRA|CRI|CDB|ações|...     │               │
-│                          │  • Percentuais: \d+[,.]?\d*\s*%      │               │
-│                          └──────────────────┬───────────────────┘               │
-│                                             │                                   │
-│                                             ▼                                   │
-│                                    ┌──────────────────┐                         │
-│                                    │  Dados Extraídos │                         │
-│                                    │  (estruturados)  │                         │
-│                                    └──────────────────┘                         │
+│    ┌──────────────┐                                                             │
+│    │   Chunks     │                                                             │
+│    │ Recuperados  │                                                             │
+│    └──────┬───────┘                                                             │
+│           │                                                                     │
+│           ├────────────────────────────────────────────┐                        │
+│           │ (SEMPRE)                                   │ (SE HABILITADO)        │
+│           ▼                                            ▼                        │
+│    ┌──────────────────────────────────────┐   ┌──────────────────┐              │
+│    │          REGEX PATTERNS              │   │   LLM CLOUD      │              │
+│    │                                      │   │  (complementa)   │              │
+│    │  • CPF: \d{3}\.\d{3}\.\d{3}-\d{2}    │   │                  │              │
+│    │  • Valores: R\$\s*[\d.,]+            │   │ • Valores extenso│              │
+│    │  • Ativos: CRA|CRI|CDB|ações|...     │   │ • Contexto       │              │
+│    │  • Percentuais: \d+[,.]?\d*\s*%      │   │ • Referências    │              │
+│    └──────────────────┬───────────────────┘   └────────┬─────────┘              │
+│                       │                                │                        │
+│                       └───────────┬────────────────────┘                        │
+│                                   │ MERGE (regex_priority)                      │
+│                                   ▼                                             │
+│                          ┌──────────────────┐                                   │
+│                          │  Dados Extraídos │                                   │
+│                          │  (estruturados)  │                                   │
+│                          └──────────────────┘                                   │
 │                                                                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                      │
@@ -1042,6 +1081,227 @@ Arquivo: src/inventory/meeting_minutes_report.py
 
 ---
 
+## 🔄 Fluxo com e sem Geração LLM
+
+### Fluxo SEM Geração (padrão offline)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      FLUXO PADRÃO (generate_answers: false)                     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   PDF ──► OCR ──► Texto ──► Chunks ──► Embeddings ──► FAISS Index               │
+│                                                           │                     │
+│                                                           │                     │
+│   Query ──► Embedding ──► Busca FAISS ──► Top-K Chunks ──┘                      │
+│                                                │                                │
+│                                                ▼                                │
+│                                    ┌──────────────────────┐                     │
+│                                    │   REGEX PATTERNS     │ ◄── 100% LOCAL      │
+│                                    │   (SEMPRE EXECUTA)   │                     │
+│                                    └──────────┬───────────┘                     │
+│                                               │                                 │
+│                                               ▼                                 │
+│                                        ┌────────────┐                           │
+│                                        │  SAÍDAS    │                           │
+│                                        └────────────┘                           │
+│                                                                                 │
+│   ✅ Rápido (~60% mais rápido que com geração)                                  │
+│   ✅ 100% offline                                                               │
+│   ✅ Preciso para dados estruturados (valores, CPFs, CNPJs)                     │
+│   ⚠️ Não captura valores por extenso ("trinta mil")                             │
+│   ⚠️ Não entende referências contextuais ("conforme acima")                     │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo COM Geração LLM Cloud (modo online)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│              FLUXO COM LLM (generate_answers: true + modo online)               │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   PDF ──► OCR ──► Texto ──► Chunks ──► Embeddings ──► FAISS Index               │
+│                                                           │                     │
+│                                                           │                     │
+│   Query ──► Embedding ──► Busca FAISS ──► Top-K Chunks ──┘                      │
+│                                                │                                │
+│                         ┌──────────────────────┼──────────────────────┐         │
+│                         │                      │                      │         │
+│                         ▼                      ▼                      │         │
+│            ┌──────────────────────┐   ┌──────────────────┐            │         │
+│            │   REGEX PATTERNS     │   │   LLM CLOUD      │ ◄── API   │         │
+│            │   (SEMPRE EXECUTA)   │   │   (COMPLEMENTA)  │    CALL   │         │
+│            │                      │   │                  │            │         │
+│            │ • Valores precisos   │   │ • "trinta mil"   │            │         │
+│            │ • CPF/CNPJ           │   │   → 30.000       │            │         │
+│            │ • Tickers            │   │ • "item anterior"│            │         │
+│            └──────────┬───────────┘   │   → valor        │            │         │
+│                       │               └────────┬─────────┘            │         │
+│                       │                        │                      │         │
+│                       └───────────┬────────────┘                      │         │
+│                                   │                                   │         │
+│                                   ▼                                   │         │
+│                       ┌──────────────────────┐                        │         │
+│                       │       MERGE          │                        │         │
+│                       │  (regex_priority)    │                        │         │
+│                       │                      │                        │         │
+│                       │ • Regex: prioridade  │                        │         │
+│                       │   para valores       │                        │         │
+│                       │ • LLM: adiciona o    │                        │         │
+│                       │   que regex não      │                        │         │
+│                       │   capturou           │                        │         │
+│                       └──────────┬───────────┘                        │         │
+│                                  │                                    │         │
+│                                  ▼                                    │         │
+│                           ┌────────────┐                              │         │
+│                           │  SAÍDAS    │                              │         │
+│                           │ ENRIQUECIDAS│                             │         │
+│                           └────────────┘                              │         │
+│                                                                                 │
+│   ✅ Captura valores por extenso e contextuais                                  │
+│   ✅ Regex mantém precisão para dados estruturados                              │
+│   ⚠️ Requer conexão internet + API key                                          │
+│   ⚠️ Custo por documento (~R$ 0,10 - R$ 0,50)                                   │
+│   ⚠️ Mais lento que offline                                                     │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ⚖️ Comparativo: Regex vs LLM
+
+| Tipo de Dado | Regex | LLM | Recomendação |
+|--------------|-------|-----|--------------|
+| `R$ 32,50` | ✅ 99% preciso | ✅ 95% | **Usar Regex** |
+| `PETR4 = 1.500 ações` | ✅ 99% preciso | ✅ 90% | **Usar Regex** |
+| `CPF: 123.456.789-00` | ✅ 100% preciso | ✅ 95% | **Usar Regex** |
+| `trinta mil reais` | ❌ Não captura | ✅ Converte para 30.000 | **Usar LLM** |
+| `valor aproximado de 1 milhão` | ❌ Parcial | ✅ Entende 1.000.000 | **Usar LLM** |
+| `conforme item anterior` | ❌ Não entende | ✅ Infere contexto | **Usar LLM** |
+| `mês passado` (data relativa) | ❌ Não converte | ✅ Calcula data | **Usar LLM** |
+| Nome de pessoa em contexto | ⚠️ Parcial | ✅ Entende contexto | **Usar LLM** |
+
+### Estratégia Recomendada
+
+| Cenário | Modo | Geração | Por quê |
+|---------|------|---------|---------|
+| **Ambiente corporativo restrito** | `offline` | `false` | Sem internet, rápido, preciso para dados estruturados |
+| **Máxima extração de dados** | `online` | `true` + LLM | LLM complementa regex para dados contextuais |
+| **Desenvolvimento/testes** | `hybrid` | `false` | Flexível, usa cache local |
+| **Documentos simples** | `offline` | `false` | Regex é suficiente, mais rápido |
+| **Documentos complexos** | `online` | `true` + LLM | Valores por extenso, referências |
+
+### CLI para cada cenário
+
+```bash
+# Cenário 1: Corporativo restrito (PADRÃO)
+python run.py analyze documento.pdf
+
+# Cenário 2: Máxima extração (requer API key configurada)
+python run.py --online --use-cloud-generation analyze documento.pdf
+
+# Cenário 3: Desenvolvimento
+python run.py --hybrid analyze documento.pdf
+
+# Cenário 4: Forçar offline mesmo com internet
+python run.py --offline analyze documento.pdf
+```
+
+---
+
+## 🔑 Configuração de API Keys (modo online)
+
+Para usar extração via LLM cloud (OpenAI, Anthropic), você precisa configurar a API key do provedor.
+
+### Método 1: Arquivo `.env` (Recomendado)
+
+Crie um arquivo chamado `.env` na raiz do projeto (mesmo diretório do `run.py`):
+
+```env
+# .env - NÃO commite este arquivo!
+
+# OpenAI - Para usar GPT-4o-mini
+# Obtenha em: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-proj-abc123...
+
+# Anthropic - Para usar Claude (opcional)
+# Obtenha em: https://console.anthropic.com/
+ANTHROPIC_API_KEY=sk-ant-xyz789...
+```
+
+**Como criar o arquivo `.env`:**
+
+```powershell
+# PowerShell - cria o arquivo
+New-Item -Path ".env" -ItemType File
+notepad .env   # Abre para editar
+```
+
+```cmd
+# CMD - cria o arquivo
+echo. > .env
+notepad .env
+```
+
+O sistema carrega automaticamente o arquivo `.env` na inicialização.
+
+> ⚠️ **Segurança**: O arquivo `.env` está no `.gitignore` e **nunca** deve ser commitado.
+
+### Método 2: Variáveis de Ambiente
+
+**PowerShell (temporário - só para a sessão):**
+```powershell
+$env:OPENAI_API_KEY = "sk-proj-abc123..."
+python run.py --online --use-cloud-generation analyze documento.pdf
+```
+
+**CMD (temporário):**
+```cmd
+set OPENAI_API_KEY=sk-proj-abc123...
+python run.py --online --use-cloud-generation analyze documento.pdf
+```
+
+**Windows (permanente):**
+1. Painel de Controle → Sistema → Configurações avançadas do sistema
+2. Variáveis de Ambiente
+3. Nova variável de usuário: `OPENAI_API_KEY` = `sk-proj-...`
+
+### Variáveis por Provedor
+
+| Provedor | Variável de Ambiente | Onde obter |
+|----------|---------------------|------------|
+| OpenAI | `OPENAI_API_KEY` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| Anthropic | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
+
+### Verificar se está configurado
+
+```powershell
+# PowerShell - deve retornar a key (ou parte dela)
+$env:OPENAI_API_KEY
+
+# Se retornar vazio, não está configurada
+```
+
+### Exemplo Completo de Uso
+
+```powershell
+# 1. Crie o arquivo .env (uma única vez)
+# Conteúdo: OPENAI_API_KEY=sk-proj-...
+
+# 2. Ative o ambiente
+.\activate_env.ps1
+
+# 3. Execute com LLM cloud
+python run.py --online --use-cloud-generation analyze ata_reuniao.pdf -p meeting_minutes
+```
+
+> 💡 **Dica**: Com o arquivo `.env` configurado, você não precisa definir a variável toda vez - basta usar a flag `--use-cloud-generation`.
+
+---
+
 ### Componentes e Arquivos
 
 | Componente | Arquivo | Responsabilidade |
@@ -1052,6 +1312,7 @@ Arquivo: src/inventory/meeting_minutes_report.py
 | **EmbeddingProvider** | `src/rag/embeddings.py` | Geração de vetores BERT |
 | **VectorStore** | `src/rag/vector_store.py` | Indexação FAISS |
 | **Retriever** | `src/rag/retriever.py` | Busca semântica |
+| **LLMExtractor** | `src/rag/llm_extractor.py` | Extração complementar via LLM cloud |
 | **RAGPipeline** | `src/rag/rag_pipeline.py` | Orquestração do pipeline |
 | **InventoryAnalyzer** | `src/inventory/analyzer.py` | Extração para inventários |
 | **MeetingMinutesAnalyzer** | `src/inventory/meeting_minutes_analyzer.py` | Extração para atas |

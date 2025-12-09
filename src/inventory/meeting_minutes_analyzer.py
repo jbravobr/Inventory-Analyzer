@@ -2,6 +2,15 @@
 Analisador de Atas de Reunião de Quotistas.
 
 Extrai informações sobre ativos envolvidos e suas respectivas quantidades.
+
+Estratégia de Extração:
+1. REGEX (sempre executa) - Extração precisa de padrões estruturados
+2. LLM (opcional) - Complementa regex para dados contextuais
+
+O LLM só é usado se:
+- generate_answers: true
+- llm_extraction.enabled: true
+- Modo online ou hybrid com use_cloud_generation: true
 """
 
 from __future__ import annotations
@@ -13,8 +22,11 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 from rag.rag_pipeline import RAGPipeline, RAGConfig
+from rag.llm_extractor import get_llm_extractor, ExtractionMerger, LLMExtractor
 from core.pdf_reader import PDFReader
 from core.ocr_extractor import OCRExtractor
+from config.settings import get_settings
+from config.mode_manager import get_mode_manager
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +245,48 @@ class MeetingMinutesAnalyzer:
         self.ocr = OCRExtractor()
         self._document = None
         self._full_text = ""
+        
+        # Inicializa extrator LLM se disponível
+        self._llm_extractor: Optional[LLMExtractor] = None
+        self._merger: Optional[ExtractionMerger] = None
+        self._init_llm_extractor()
+    
+    def _init_llm_extractor(self) -> None:
+        """
+        Inicializa o extrator LLM se disponível e configurado.
+        
+        O LLM é usado como COMPLEMENTO ao regex quando:
+        - llm_extraction.enabled = true no config.yaml
+        - Modo é online ou hybrid
+        - use_cloud_generation = true
+        """
+        try:
+            settings = get_settings()
+            mode_mgr = get_mode_manager()
+            
+            # Verifica se extração LLM está habilitada
+            llm_config = settings.rag.generation.llm_extraction
+            
+            if llm_config.enabled and mode_mgr.use_cloud_generation:
+                self._llm_extractor = get_llm_extractor(settings, mode_mgr)
+                
+                if self._llm_extractor:
+                    self._merger = ExtractionMerger(strategy=llm_config.merge_strategy)
+                    logger.info(
+                        f"Extração LLM habilitada (provider: {llm_config.provider}, "
+                        f"merge: {llm_config.merge_strategy})"
+                    )
+                else:
+                    logger.debug("LLMExtractor não disponível")
+            else:
+                logger.debug(
+                    f"Extração LLM desabilitada "
+                    f"(enabled={llm_config.enabled}, "
+                    f"cloud_gen={mode_mgr.use_cloud_generation if mode_mgr else 'N/A'})"
+                )
+        except Exception as e:
+            logger.warning(f"Erro ao inicializar extração LLM: {e}")
+            self._llm_extractor = None
     
     def analyze(self, pdf_path: Path) -> MeetingMinutesResult:
         """
@@ -300,8 +354,27 @@ class MeetingMinutesAnalyzer:
         result.assets_raw_text = "\n---\n".join(all_contexts)
         result.assets_pages = sorted(list(all_pages))
         
-        # Extrai ativos do texto
-        result.assets = self._extract_assets_from_text(result.assets_raw_text)
+        # ETAPA 1: Extrai ativos via REGEX (sempre executa)
+        regex_assets = self._extract_assets_from_text(result.assets_raw_text)
+        logger.info(f"Regex extraiu {len(regex_assets)} ativos")
+        
+        # ETAPA 2: Extrai via LLM se disponível (complementa regex)
+        if self._llm_extractor and self._merger:
+            try:
+                llm_result = self._llm_extractor.extract(result.assets_raw_text)
+                if llm_result.assets:
+                    logger.info(f"LLM extraiu {len(llm_result.assets)} ativos adicionais")
+                    # ETAPA 3: Merge dos resultados
+                    result.assets = self._merger.merge_assets(regex_assets, llm_result.assets)
+                    logger.info(f"Total após merge: {len(result.assets)} ativos")
+                else:
+                    result.assets = regex_assets
+            except Exception as e:
+                logger.warning(f"Erro na extração LLM de ativos: {e}")
+                result.assets = regex_assets
+        else:
+            result.assets = regex_assets
+        
         result.confidence_scores["assets"] = 0.7 if result.assets else 0.3
     
     def _analyze_quantities(self, result: MeetingMinutesResult) -> None:
@@ -329,11 +402,34 @@ class MeetingMinutesAnalyzer:
         result.quantities_raw_text = "\n---\n".join(all_contexts)
         result.quantities_pages = sorted(list(all_pages))
         
-        # Extrai quantidades associadas aos ativos
-        result.asset_quantities = self._extract_quantities_from_text(
+        # ETAPA 1: Extrai quantidades via REGEX (sempre executa)
+        regex_quantities = self._extract_quantities_from_text(
             result.quantities_raw_text,
             result.assets
         )
+        logger.info(f"Regex extraiu {len(regex_quantities)} quantidades")
+        
+        # ETAPA 2: Extrai via LLM se disponível (complementa regex)
+        if self._llm_extractor and self._merger:
+            try:
+                llm_result = self._llm_extractor.extract(result.quantities_raw_text)
+                llm_quantities = llm_result.quantities + llm_result.contextual_values
+                
+                if llm_quantities:
+                    logger.info(f"LLM extraiu {len(llm_quantities)} valores adicionais")
+                    # ETAPA 3: Merge dos resultados
+                    result.asset_quantities = self._merger.merge_quantities(
+                        regex_quantities, llm_quantities
+                    )
+                    logger.info(f"Total após merge: {len(result.asset_quantities)} quantidades")
+                else:
+                    result.asset_quantities = regex_quantities
+            except Exception as e:
+                logger.warning(f"Erro na extração LLM de quantidades: {e}")
+                result.asset_quantities = regex_quantities
+        else:
+            result.asset_quantities = regex_quantities
+        
         result.confidence_scores["quantities"] = 0.7 if result.asset_quantities else 0.3
     
     def _analyze_general_info(self, result: MeetingMinutesResult) -> None:

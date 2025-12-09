@@ -305,17 +305,41 @@ class CloudGenerator(ResponseGenerator):
     Gerador usando APIs de LLM em nuvem.
     
     Suporta OpenAI e Anthropic.
+    Usa configurações de cloud_providers do config.yaml.
     """
     
     def __init__(
         self,
         settings: Optional[Settings] = None,
-        provider: Optional[str] = None
+        provider: Optional[str] = None,
+        mode_manager: Optional[ModeManager] = None
     ):
         super().__init__(settings)
         self._client = None
-        self._provider = provider or self.settings.nlp.cloud.provider
-        self._model = self.settings.nlp.cloud.model
+        self._mode_manager = mode_manager
+        
+        # Determina o provedor a usar
+        # Prioridade: parâmetro > config llm_extraction > config nlp.cloud
+        if provider:
+            self._provider = provider
+        elif hasattr(self.settings, 'rag') and self.settings.rag.generation.llm_extraction.enabled:
+            self._provider = self.settings.rag.generation.llm_extraction.provider
+        else:
+            self._provider = self.settings.nlp.cloud.provider
+        
+        # Obtém configuração do provedor
+        self._provider_config = self._get_provider_config()
+        self._model = self._provider_config.generation_model if self._provider_config else self.settings.nlp.cloud.model
+    
+    def _get_provider_config(self):
+        """Obtém configuração do provedor cloud."""
+        if hasattr(self.settings, 'rag') and hasattr(self.settings.rag.generation, 'cloud_providers'):
+            providers = self.settings.rag.generation.cloud_providers
+            if self._provider == "openai":
+                return providers.openai
+            elif self._provider == "anthropic":
+                return providers.anthropic
+        return None
     
     def initialize(self) -> None:
         """Inicializa cliente da API."""
@@ -336,30 +360,48 @@ class CloudGenerator(ResponseGenerator):
         try:
             from openai import OpenAI
             
-            api_key = self.settings.nlp.cloud.api_key
+            # Usa API key da configuração do provedor ou fallback para nlp.cloud
+            api_key = None
+            if self._provider_config:
+                api_key = self._provider_config.api_key
             if not api_key:
-                raise ValueError("API key não configurada")
+                api_key = self.settings.nlp.cloud.api_key
+            
+            if not api_key:
+                raise ValueError(
+                    "API key OpenAI não configurada. "
+                    "Defina OPENAI_API_KEY no ambiente ou configure em config.yaml"
+                )
             
             self._client = OpenAI(api_key=api_key)
-            logger.info("Cliente OpenAI inicializado")
+            logger.info(f"Cliente OpenAI inicializado (modelo: {self._model})")
             
         except ImportError:
-            raise ImportError("openai não instalado")
+            raise ImportError("openai não instalado. Instale com: pip install openai")
     
     def _init_anthropic(self) -> None:
         """Inicializa Anthropic."""
         try:
             from anthropic import Anthropic
             
-            api_key = self.settings.nlp.cloud.api_key
+            # Usa API key da configuração do provedor ou fallback para nlp.cloud
+            api_key = None
+            if self._provider_config:
+                api_key = self._provider_config.api_key
             if not api_key:
-                raise ValueError("API key não configurada")
+                api_key = self.settings.nlp.cloud.api_key
+            
+            if not api_key:
+                raise ValueError(
+                    "API key Anthropic não configurada. "
+                    "Defina ANTHROPIC_API_KEY no ambiente ou configure em config.yaml"
+                )
             
             self._client = Anthropic(api_key=api_key)
-            logger.info("Cliente Anthropic inicializado")
+            logger.info(f"Cliente Anthropic inicializado (modelo: {self._model})")
             
         except ImportError:
-            raise ImportError("anthropic não instalado")
+            raise ImportError("anthropic não instalado. Instale com: pip install anthropic")
     
     def generate(
         self,
@@ -392,14 +434,18 @@ Por favor, responda baseado APENAS no contexto fornecido acima."""
         user_message: str
     ) -> GeneratedResponse:
         """Gera com OpenAI."""
+        # Usa configurações do provedor ou fallback
+        temperature = self._provider_config.temperature if self._provider_config else self.settings.nlp.cloud.temperature
+        max_tokens = self._provider_config.max_tokens if self._provider_config else self.settings.nlp.cloud.max_tokens
+        
         response = self._client.chat.completions.create(
             model=self._model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_message}
             ],
-            temperature=self.settings.nlp.cloud.temperature,
-            max_tokens=self.settings.nlp.cloud.max_tokens
+            temperature=temperature,
+            max_tokens=max_tokens
         )
         
         self._total_tokens += response.usage.total_tokens
@@ -530,26 +576,33 @@ Não invente informações."""
 def get_response_generator(
     mode: Optional[str] = None,
     settings: Optional[Settings] = None,
-    mode_manager: Optional[ModeManager] = None
+    mode_manager: Optional[ModeManager] = None,
+    provider: Optional[str] = None
 ) -> ResponseGenerator:
     """
     Factory para obter gerador de respostas.
     
     O ModeManager controla o comportamento:
     - OFFLINE: Sempre retorna LocalGenerator
-    - ONLINE: Pode retornar CloudGenerator se configurado
-    - HYBRID: Tenta cloud, fallback para local
+    - ONLINE + use_cloud_generation: Retorna CloudGenerator
+    - HYBRID: Tenta cloud se conectado, fallback para local
     
     Args:
         mode: "local" ou "cloud"
         settings: Configurações
         mode_manager: Gerenciador de modo (opcional)
+        provider: Provedor cloud específico ("openai", "anthropic")
     
     Returns:
         ResponseGenerator: Gerador configurado
     """
     settings = settings or get_settings()
     mode_mgr = mode_manager or get_mode_manager()
+    
+    # Verifica se deve usar geração cloud
+    if mode_mgr.use_cloud_generation:
+        logger.info(f"Usando gerador CLOUD (modo={mode_mgr.mode.value})")
+        return CloudGenerator(settings, provider=provider, mode_manager=mode_mgr)
     
     # ModeManager pode forçar uso de modelo local
     if mode_mgr.should_use_local_model():
@@ -568,7 +621,7 @@ def get_response_generator(
                 "Usando gerador local."
             )
             return LocalGenerator(settings, mode_manager=mode_mgr)
-        return CloudGenerator(settings)
+        return CloudGenerator(settings, provider=provider, mode_manager=mode_mgr)
     else:
         # Default para local
         return LocalGenerator(settings, mode_manager=mode_mgr)
