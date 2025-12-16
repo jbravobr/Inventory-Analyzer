@@ -64,6 +64,9 @@ Write-Host "[5/5] Configurando ambiente..." -ForegroundColor Yellow
 # Cria diretórios necessários
 New-Item -ItemType Directory -Path "output" -Force | Out-Null
 New-Item -ItemType Directory -Path "cache" -Force | Out-Null
+New-Item -ItemType Directory -Path "cache\qa_responses" -Force | Out-Null
+New-Item -ItemType Directory -Path "cache\dkr" -Force | Out-Null
+New-Item -ItemType Directory -Path "domain_rules" -Force | Out-Null
 
 Write-Host "  ✓ Diretórios criados" -ForegroundColor Green
 
@@ -78,7 +81,12 @@ Write-Host "  meeting_minutes  - Ata de Reuniao de Quotistas (ativos, quantidade
 Write-Host ""
 Write-Host "Para usar:" -ForegroundColor Cyan
 Write-Host "  1. Execute: .\activate_env.ps1" -ForegroundColor White
-Write-Host "  2. Execute: python run.py analyze <arquivo.pdf>" -ForegroundColor White
-Write-Host "  3. Ou com perfil: python run.py analyze <arquivo.pdf> -p meeting_minutes" -ForegroundColor White
+Write-Host "  2. Analise: python run.py analyze <arquivo.pdf>" -ForegroundColor White
+Write-Host "  3. Q&A:     python run.py qa <arquivo.pdf> -q `"sua pergunta`"" -ForegroundColor White
+Write-Host ""
+Write-Host "Comandos adicionais:" -ForegroundColor Cyan
+Write-Host "  python run.py qa --list-templates      # Templates Q&A disponiveis" -ForegroundColor White
+Write-Host "  python run.py dkr list                 # Regras de dominio disponiveis" -ForegroundColor White
+Write-Host "  python run.py models                   # Modelos de linguagem disponiveis" -ForegroundColor White
 Write-Host ""
 

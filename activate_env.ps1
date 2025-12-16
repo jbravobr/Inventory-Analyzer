@@ -128,9 +128,19 @@ Write-Host "  python run.py profiles                      - Listar perfis de ana
 Write-Host "  python run.py info                          - Ver configuracoes" -ForegroundColor White
 Write-Host ""
 
+Write-Host "Domain Knowledge Rules (DKR):" -ForegroundColor Cyan
+Write-Host "  python run.py dkr list                      - Listar regras de dominio" -ForegroundColor White
+Write-Host "  python run.py dkr validate                  - Validar arquivos .rules" -ForegroundColor White
+Write-Host "  python run.py dkr test <arquivo.rules>      - Testar regras" -ForegroundColor White
+Write-Host "  python run.py dkr wizard                    - Assistente para criar regras" -ForegroundColor White
+Write-Host "  python run.py dkr repl                      - Console interativo DKR" -ForegroundColor White
+Write-Host ""
+
 Write-Host "Opcoes do Q&A:" -ForegroundColor Cyan
 Write-Host "  --template <nome>     - Usar template especifico" -ForegroundColor White
 Write-Host "  --model <nome>        - Usar modelo especifico (tinyllama, gpt2-portuguese)" -ForegroundColor White
+Write-Host "  --explain             - Mostrar trace das regras DKR aplicadas" -ForegroundColor White
+Write-Host "  --no-dkr              - Desabilitar regras de dominio" -ForegroundColor White
 Write-Host "  --save-txt <arquivo>  - Salvar resposta em arquivo TXT" -ForegroundColor White
 Write-Host ""
 
@@ -143,4 +153,5 @@ Write-Host "Exemplos:" -ForegroundColor Yellow
 Write-Host "  python run.py analyze escritura.pdf -o ./resultado" -ForegroundColor White
 Write-Host "  python run.py qa contrato.pdf -q ""Qual o valor total?"" --save-txt resp.txt" -ForegroundColor White
 Write-Host "  python run.py qa documento.pdf -i --template licencas_software" -ForegroundColor White
+Write-Host "  python run.py qa licencas.pdf -q ""Qual a licença mais crítica?"" --explain" -ForegroundColor White
 Write-Host ""

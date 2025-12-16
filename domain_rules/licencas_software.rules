@@ -1,0 +1,197 @@
+# ═══════════════════════════════════════════════════════════
+#  REGRAS DE DOMÍNIO: Licenças de Software
+#  
+#  Este arquivo define conhecimento estruturado sobre licenças
+#  de software open source para melhorar a acurácia das respostas.
+#  
+#  Última atualização: 16/12/2024
+# ═══════════════════════════════════════════════════════════
+
+DOMÍNIO: Licenças de Software Open Source
+
+─────────────────────────────────────────────────────────────
+FATOS CONHECIDOS:
+─────────────────────────────────────────────────────────────
+
+# Licenças de ALTO risco (críticas)
+A licença AGPL-3.0-only tem criticidade ALTO.
+  Motivo: Possui obrigações mesmo sem distribuição, introduzindo a modalidade SaaS.
+  Ação: Evitar uso.
+
+# Licenças de MÉDIO risco
+A licença GPL-2.0-only tem criticidade MÉDIO.
+  Motivo: Copyleft forte com baixa compatibilidade entre versões.
+  Ação: Usar com cuidado.
+
+A licença MPL-1.1 tem criticidade MÉDIO.
+  Motivo: Menor compatibilidade que MPL-2.0.
+  Ação: Preferir versão mais recente.
+
+# Licenças de BAIXO risco (seguras)
+A licença Apache-2.0 tem criticidade BAIXO.
+  Motivo: Licença permissiva com poucas obrigações.
+  Ação: Segura para uso.
+
+A licença MIT tem criticidade BAIXO.
+  Motivo: Licença permissiva, poucas obrigações.
+  Ação: Segura para uso.
+
+A licença BSD tem criticidade BAIXO.
+  Motivo: Licença permissiva, poucas obrigações.
+  Ação: Segura para uso.
+
+A licença LGPL-2.1+ tem criticidade BAIXO.
+  Motivo: Copyleft fraco com boa compatibilidade.
+  Ação: Segura para uso.
+
+A licença GPL-3.0-or-later tem criticidade BAIXO.
+  Motivo: Boa compatibilidade entre versões.
+  Ação: Segura para uso.
+
+A licença MPL-2.0 tem criticidade BAIXO.
+  Motivo: Permissiva com copyleft por arquivo.
+  Ação: Segura para uso.
+
+A licença EPL-2.0 tem criticidade BAIXO.
+  Motivo: Licença permissiva com copyleft fraco.
+  Ação: Segura para uso.
+
+─────────────────────────────────────────────────────────────
+PADRÕES DE INTENÇÃO:
+─────────────────────────────────────────────────────────────
+
+criticidade_alta:
+  - "mais crítica"
+  - "mais perigosa"
+  - "mais restritiva"
+  - "maior risco"
+  - "devo evitar"
+  - "evitar"
+  Resposta deve conter: "ALTO", "AGPL"
+
+criticidade_baixa:
+  - "mais segura"
+  - "mais permissiva"
+  - "recomendada"
+  - "posso usar"
+  - "seguras"
+  - "baixo risco"
+  Resposta deve conter: "BAIXO"
+
+compatibilidade:
+  - "compatível"
+  - "compatibilidade"
+  - "incompatível"
+  - "podem ser usadas juntas"
+
+─────────────────────────────────────────────────────────────
+EXPANSÃO DE BUSCA:
+─────────────────────────────────────────────────────────────
+
+Para "criticidade_alta", adicionar: "GRAU DE CRITICIDADE", "ALTO"
+Para "criticidade_baixa", adicionar: "GRAU DE CRITICIDADE", "BAIXO", "permissiva"
+Para "compatibilidade", adicionar: "COMPATIBILIDADE ENTRE", "compatível", "incompatível"
+
+─────────────────────────────────────────────────────────────
+REGRAS DE VALIDAÇÃO:
+─────────────────────────────────────────────────────────────
+
+# Regra 1: Corrige quando pergunta sobre "mais crítica" mas resposta menciona licença segura
+QUANDO usuário pergunta "mais crítica"
+  E resposta menciona "Apache"
+  E resposta NÃO menciona "AGPL"
+ENTÃO corrigir para:
+  De acordo com o documento, a licença mais crítica é **AGPL-3.0-only** com grau de criticidade **ALTO**.
+  
+  Justificativa: Possui obrigações mesmo sem distribuição, introduzindo a modalidade SaaS (Software as a Service).
+  
+  Recomendação: Evitar o uso desta licença por ser mais restritiva.
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 2: Também corrige se mencionar MIT como crítica
+QUANDO usuário pergunta "mais crítica"
+  E resposta menciona "MIT"
+  E resposta NÃO menciona "AGPL"
+ENTÃO corrigir para:
+  De acordo com o documento, a licença mais crítica é **AGPL-3.0-only** com grau de criticidade **ALTO**.
+  
+  Justificativa: Possui obrigações mesmo sem distribuição, introduzindo a modalidade SaaS.
+  
+  Recomendação: Evitar o uso desta licença.
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 3: Corrige quando pergunta sobre "segura" mas resposta menciona AGPL ou GPL
+QUANDO usuário pergunta "mais segura"
+  E resposta menciona "AGPL"
+ENTÃO corrigir para:
+  De acordo com o documento, as licenças mais seguras são **Apache 2.0**, **MIT** e **BSD** com grau de criticidade **BAIXO**.
+  
+  São licenças permissivas com poucas obrigações legais.
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 3b: Também corrige se mencionar GPL como segura
+QUANDO usuário pergunta "mais segura"
+  E resposta menciona "GPL"
+  E resposta NÃO menciona "Apache 2.0"
+  E resposta NÃO menciona "MIT License"
+ENTÃO corrigir para:
+  De acordo com o documento, as licenças mais seguras são **Apache 2.0**, **MIT** e **BSD** com grau de criticidade **BAIXO**.
+  
+  **Nota:** GPL não é considerada uma das mais seguras, pois possui requisitos de copyleft.
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 3c: Corrige se GPL aparece como a "mais segura" explicitamente
+QUANDO usuário pergunta "mais segura"
+  E resposta menciona "GPL"
+  E resposta NÃO menciona "BAIXO"
+ENTÃO corrigir para:
+  De acordo com o documento, as licenças mais seguras são **Apache 2.0**, **MIT** e **BSD** com grau de criticidade **BAIXO**.
+  
+  A GPL tem requisitos de copyleft que podem impor obrigações adicionais.
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 4: Corrige quando pergunta sobre "evitar" mas não menciona AGPL como principal
+QUANDO usuário pergunta "evitar"
+  E resposta menciona "Apache"
+  E resposta NÃO menciona "ALTO"
+ENTÃO corrigir para:
+  De acordo com o documento, deve-se **evitar** principalmente a licença **AGPL-3.0-only** (criticidade ALTO).
+  
+  Recomendações gerais do documento:
+  • Evitar licenças com "only" pois são mais restritivas
+  • Evitar AGPL-3.0 por ter obrigações mesmo sem distribuição
+  • Buscar versões "or-later" que são mais compatíveis
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 5: Corrige quando resposta lista muitas licenças sem distinguir criticidade
+QUANDO usuário pergunta "evitar"
+  E resposta menciona "MIT"
+  E resposta menciona "BAIXO"
+ENTÃO corrigir para:
+  De acordo com o documento, deve-se **evitar** principalmente a licença **AGPL-3.0-only** (criticidade ALTO).
+  
+  Recomendações gerais do documento:
+  • Evitar AGPL-3.0-only por ter obrigações mesmo sem distribuição (SaaS)
+  • Ter cuidado com GPL-2.0-only (MÉDIO) devido à baixa compatibilidade
+  • Licenças como Apache 2.0, MIT e BSD são seguras (BAIXO) e podem ser usadas
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+─────────────────────────────────────────────────────────────
+SINÔNIMOS:
+─────────────────────────────────────────────────────────────
+
+"crítica" também pode ser: "perigosa", "arriscada", "restritiva", "problemática"
+"segura" também pode ser: "permissiva", "liberada", "recomendada", "ok"
+"GPL" também pode ser: "GNU GPL", "General Public License"
+"AGPL" também pode ser: "Affero GPL", "AGPLv3", "Affero"
+"Apache" também pode ser: "Apache License", "APL-2.0", "Apache 2"
+"MIT" também pode ser: "MIT License", "Licença MIT"
+"evitar" também pode ser: "não usar", "fugir", "descartar"
+

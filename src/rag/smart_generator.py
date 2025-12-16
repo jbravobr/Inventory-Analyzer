@@ -28,8 +28,8 @@ MODEL_CONFIGS = {
         "path": "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
         "name": "TinyLlama-1.1B-Chat",
         "context_length": 2048,
-        "max_tokens": 512,
-        "max_context_chars": 700,  # Modelo pequeno, janela limitada
+        "max_tokens": 256,  # Reduzido para dar mais espaço ao prompt
+        "max_context_chars": 500,  # Contexto conservador para caber no prompt total
         "quality": "good",
     },
     "phi3-mini": {

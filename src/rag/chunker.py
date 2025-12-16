@@ -31,6 +31,7 @@ class ChunkingStrategy(Enum):
     PARAGRAPH = "paragraph"
     SEMANTIC = "semantic"
     RECURSIVE = "recursive"
+    SEMANTIC_SECTIONS = "semantic_sections"  # Novo: por seções lógicas
 
 
 @dataclass
@@ -342,6 +343,321 @@ class RecursiveChunker(BaseChunker):
         return final_chunks
 
 
+class ParagraphChunker(BaseChunker):
+    """
+    Chunker que preserva parágrafos inteiros.
+    
+    Agrupa parágrafos até atingir o tamanho máximo,
+    sem cortar no meio de um parágrafo.
+    
+    Ideal para documentos jurídicos onde parágrafos
+    contêm informações completas.
+    """
+    
+    def chunk_text(self, text: str, page_number: int = 1) -> List[Chunk]:
+        """Divide texto por parágrafos."""
+        # Divide em parágrafos (2+ quebras de linha)
+        paragraphs = re.split(r'\n\s*\n', text)
+        paragraphs = [p.strip() for p in paragraphs if p.strip()]
+        
+        chunks = []
+        current_paragraphs = []
+        current_length = 0
+        current_start = 0
+        index = 0
+        char_pos = 0
+        
+        for paragraph in paragraphs:
+            paragraph_length = len(paragraph)
+            
+            # Se adicionar este parágrafo excede o limite
+            if (current_length + paragraph_length > self.config.chunk_size 
+                and current_paragraphs):
+                
+                # Salva chunk atual
+                chunk_text = "\n\n".join(current_paragraphs)
+                
+                if len(chunk_text) >= self.config.min_chunk_size:
+                    chunks.append(Chunk(
+                        text=chunk_text,
+                        chunk_id=self._generate_chunk_id(page_number, index),
+                        page_number=page_number,
+                        start_char=current_start,
+                        end_char=char_pos,
+                        metadata={"type": "paragraph"}
+                    ))
+                    index += 1
+                
+                # Overlap: mantém último parágrafo se couber
+                if self.config.chunk_overlap > 0 and current_paragraphs:
+                    last_para = current_paragraphs[-1]
+                    if len(last_para) < self.config.chunk_overlap:
+                        current_paragraphs = [last_para]
+                        current_length = len(last_para)
+                        current_start = char_pos - len(last_para)
+                    else:
+                        current_paragraphs = []
+                        current_length = 0
+                        current_start = char_pos
+                else:
+                    current_paragraphs = []
+                    current_length = 0
+                    current_start = char_pos
+            
+            # Adiciona parágrafo ao chunk atual
+            current_paragraphs.append(paragraph)
+            current_length += paragraph_length + 2  # +2 para \n\n
+            char_pos += paragraph_length + 2
+        
+        # Último chunk
+        if current_paragraphs:
+            chunk_text = "\n\n".join(current_paragraphs)
+            if len(chunk_text) >= self.config.min_chunk_size:
+                chunks.append(Chunk(
+                    text=chunk_text,
+                    chunk_id=self._generate_chunk_id(page_number, index),
+                    page_number=page_number,
+                    start_char=current_start,
+                    end_char=len(text),
+                    metadata={"type": "paragraph"}
+                ))
+        
+        return chunks
+
+
+class SemanticSectionChunker(BaseChunker):
+    """
+    Chunker que detecta e preserva seções lógicas do documento.
+    
+    Detecta seções baseado em:
+    - Headers/títulos (linhas curtas em maiúsculas ou com marcadores)
+    - Padrões de numeração (1., 1.1, I., a), etc.)
+    - Palavras-chave de seção (CLÁUSULA, ARTIGO, SEÇÃO, etc.)
+    - Separadores visuais (---, ***, ===)
+    
+    Ideal para documentos estruturados como:
+    - Contratos
+    - Documentos de licença
+    - Atas de reunião
+    - Inventários
+    """
+    
+    # Padrões de detecção de seção
+    SECTION_PATTERNS = [
+        # Headers em maiúsculas
+        r'^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ\s\-:]{5,50}$',
+        
+        # Numeração de seção
+        r'^\d+\.\s+[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ]',          # 1. SEÇÃO
+        r'^\d+\.\d+\.?\s+',                        # 1.1 ou 1.1.
+        r'^[IVXLCDM]+\.\s+',                       # I. II. III.
+        r'^[a-z]\)\s+',                            # a) b) c)
+        r'^\(\d+\)\s+',                            # (1) (2) (3)
+        
+        # Palavras-chave de seção jurídica
+        r'^CLÁUSULA\s+',
+        r'^ARTIGO\s+',
+        r'^ART\.\s*\d+',
+        r'^SEÇÃO\s+',
+        r'^PARÁGRAFO\s+',
+        r'^§\s*\d+',
+        r'^CAPÍTULO\s+',
+        r'^TÍTULO\s+',
+        
+        # Palavras-chave de licença
+        r'^GPL|^AGPL|^LGPL|^MIT|^APACHE|^BSD|^MPL',
+        r'^LICEN[CÇ]A[S]?\s*:?',
+        r'^COMPATIBILIDADE',
+        r'^GRAU DE CRITICIDADE',
+        r'^RECOMENDAÇÕES',
+        
+        # Separadores visuais
+        r'^-{3,}$',
+        r'^\*{3,}$',
+        r'^={3,}$',
+        r'^_{3,}$',
+    ]
+    
+    def __init__(
+        self,
+        config: Optional[ChunkingConfig] = None,
+        settings: Optional[Settings] = None
+    ):
+        super().__init__(config, settings)
+        # Compila padrões para performance
+        self._compiled_patterns = [
+            re.compile(p, re.MULTILINE | re.IGNORECASE) 
+            for p in self.SECTION_PATTERNS
+        ]
+    
+    def _is_section_header(self, line: str) -> bool:
+        """Verifica se uma linha é um header de seção."""
+        line = line.strip()
+        
+        if not line or len(line) < 3:
+            return False
+        
+        # Verifica padrões
+        for pattern in self._compiled_patterns:
+            if pattern.match(line):
+                return True
+        
+        # Header curto em maiúsculas (menos que 60 chars)
+        if len(line) < 60 and line.isupper() and ' ' in line:
+            return True
+        
+        return False
+    
+    def _detect_sections(self, text: str) -> List[Tuple[int, str, str]]:
+        """
+        Detecta seções no texto.
+        
+        Returns:
+            Lista de tuplas (start_pos, header, content)
+        """
+        lines = text.split('\n')
+        sections = []
+        
+        current_header = ""
+        current_content = []
+        current_start = 0
+        char_pos = 0
+        
+        for line in lines:
+            line_length = len(line) + 1  # +1 para \n
+            
+            if self._is_section_header(line):
+                # Salva seção anterior
+                if current_content:
+                    content = '\n'.join(current_content).strip()
+                    if content:
+                        sections.append((current_start, current_header, content))
+                
+                # Inicia nova seção
+                current_header = line.strip()
+                current_content = []
+                current_start = char_pos
+            else:
+                current_content.append(line)
+            
+            char_pos += line_length
+        
+        # Última seção
+        if current_content:
+            content = '\n'.join(current_content).strip()
+            if content:
+                sections.append((current_start, current_header, content))
+        
+        return sections
+    
+    def chunk_text(self, text: str, page_number: int = 1) -> List[Chunk]:
+        """Divide texto por seções lógicas."""
+        sections = self._detect_sections(text)
+        
+        if not sections:
+            # Fallback para chunking recursivo
+            fallback = RecursiveChunker(self.config, self.settings)
+            return fallback.chunk_text(text, page_number)
+        
+        chunks = []
+        index = 0
+        
+        for start_pos, header, content in sections:
+            # Combina header com conteúdo
+            section_text = f"{header}\n\n{content}" if header else content
+            
+            # Se a seção é muito grande, subdivide
+            if len(section_text) > self.config.chunk_size:
+                sub_chunks = self._subdivide_section(
+                    section_text, 
+                    page_number, 
+                    index, 
+                    start_pos,
+                    header
+                )
+                chunks.extend(sub_chunks)
+                index += len(sub_chunks)
+            elif len(section_text) >= self.config.min_chunk_size:
+                chunks.append(Chunk(
+                    text=section_text,
+                    chunk_id=self._generate_chunk_id(page_number, index),
+                    page_number=page_number,
+                    start_char=start_pos,
+                    end_char=start_pos + len(section_text),
+                    metadata={
+                        "type": "section",
+                        "section_header": header[:50] if header else ""
+                    }
+                ))
+                index += 1
+        
+        # Se não encontrou seções suficientes, agrupa chunks pequenos
+        if len(chunks) > 0:
+            chunks = self._merge_small_chunks(chunks, page_number)
+        
+        return chunks
+    
+    def _subdivide_section(
+        self,
+        section_text: str,
+        page_number: int,
+        start_index: int,
+        start_pos: int,
+        header: str
+    ) -> List[Chunk]:
+        """Subdivide uma seção grande preservando contexto."""
+        # Usa chunker por parágrafo para subdividir
+        para_chunker = ParagraphChunker(self.config, self.settings)
+        sub_chunks = para_chunker.chunk_text(section_text, page_number)
+        
+        # Adiciona header como contexto aos chunks
+        result = []
+        for i, chunk in enumerate(sub_chunks):
+            # Adiciona header como prefixo se não é o primeiro chunk
+            if i > 0 and header and not chunk.text.startswith(header):
+                chunk.text = f"[Seção: {header}]\n\n{chunk.text}"
+            
+            chunk.chunk_id = self._generate_chunk_id(page_number, start_index + i)
+            chunk.start_char = start_pos + chunk.start_char
+            chunk.end_char = start_pos + chunk.end_char
+            chunk.metadata["section_header"] = header[:50] if header else ""
+            result.append(chunk)
+        
+        return result
+    
+    def _merge_small_chunks(
+        self, 
+        chunks: List[Chunk], 
+        page_number: int
+    ) -> List[Chunk]:
+        """Agrupa chunks muito pequenos."""
+        if not chunks:
+            return chunks
+        
+        merged = []
+        current = None
+        
+        for chunk in chunks:
+            if current is None:
+                current = chunk
+            elif (len(current.text) + len(chunk.text) < self.config.chunk_size * 0.8):
+                # Agrupa
+                current.text = f"{current.text}\n\n{chunk.text}"
+                current.end_char = chunk.end_char
+            else:
+                merged.append(current)
+                current = chunk
+        
+        if current:
+            merged.append(current)
+        
+        # Re-numera IDs
+        for i, chunk in enumerate(merged):
+            chunk.chunk_id = self._generate_chunk_id(page_number, i)
+        
+        return merged
+
+
 class TextChunker:
     """
     Classe principal de chunking que seleciona estratégia apropriada.
@@ -351,6 +667,8 @@ class TextChunker:
         ChunkingStrategy.FIXED_SIZE: FixedSizeChunker,
         ChunkingStrategy.SENTENCE: SentenceChunker,
         ChunkingStrategy.RECURSIVE: RecursiveChunker,
+        ChunkingStrategy.PARAGRAPH: ParagraphChunker,
+        ChunkingStrategy.SEMANTIC_SECTIONS: SemanticSectionChunker,
     }
     
     def __init__(
@@ -407,5 +725,50 @@ class TextChunker:
                 ", ",
                 " ",
             ]
+        )
+        return cls(config, settings)
+    
+    @classmethod
+    def for_license_documents(cls, settings: Optional[Settings] = None) -> "TextChunker":
+        """
+        Cria chunker otimizado para documentos de licenças de software.
+        
+        Usa estratégia de seções semânticas para preservar
+        a estrutura do documento de licenças.
+        """
+        config = ChunkingConfig(
+            strategy=ChunkingStrategy.SEMANTIC_SECTIONS,
+            chunk_size=800,      # Chunks maiores para contexto
+            chunk_overlap=100,   # Overlap de ~100 tokens
+            min_chunk_size=100,
+            separators=[
+                "\n\nLICENÇA",
+                "\n\nGPL",
+                "\n\nAGPL",
+                "\n\nLGPL",
+                "\n\nAPACHE",
+                "\n\nCOMPATIBILIDADE",
+                "\n\nGRAU DE CRITICIDADE",
+                "\n\nRECOMENDAÇÕES",
+                "\n\n",
+                "\n",
+                ". ",
+            ]
+        )
+        return cls(config, settings)
+    
+    @classmethod
+    def for_qa_context(cls, settings: Optional[Settings] = None) -> "TextChunker":
+        """
+        Cria chunker otimizado para Q&A.
+        
+        Chunks maiores com mais overlap para melhor contexto
+        nas perguntas e respostas.
+        """
+        config = ChunkingConfig(
+            strategy=ChunkingStrategy.SEMANTIC_SECTIONS,
+            chunk_size=1000,     # Chunks maiores para contexto rico
+            chunk_overlap=150,   # Mais overlap para não perder contexto
+            min_chunk_size=100,
         )
         return cls(config, settings)

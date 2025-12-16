@@ -268,6 +268,46 @@ python run.py qa-cache --frequent
 
 > Para documentacao completa do Q&A, veja [docs/QA_MODULE.md](docs/QA_MODULE.md)
 
+### Domain Knowledge Rules (DKR)
+
+O sistema DKR melhora a acuracia das respostas atraves de regras de dominio configuráveis:
+
+```powershell
+# Q&A com trace de debug do DKR
+python run.py qa documento.pdf -q "Qual e a mais critica?" --explain
+
+# Listar arquivos de regras
+python run.py dkr list
+
+# Validar arquivo de regras
+python run.py dkr validate domain_rules/licencas_software.rules
+
+# Assistente para criar novas regras
+python run.py dkr wizard
+
+# REPL interativo para testar regras
+python run.py dkr repl domain_rules/licencas_software.rules
+```
+
+Arquivos `.rules` usam sintaxe humanizada:
+
+```
+DOMINIO: Licencas de Software
+
+FATOS CONHECIDOS:
+A licenca AGPL-3.0 tem criticidade ALTO.
+  Motivo: Exige disponibilizacao do codigo para SaaS.
+
+REGRAS DE VALIDACAO:
+QUANDO usuario pergunta "mais critica"
+  E resposta menciona "MIT"
+  E resposta NAO menciona "AGPL"
+ENTAO corrigir para:
+  A licenca mais critica e AGPL-3.0 (ALTO).
+```
+
+> Para documentacao completa do DKR, veja [docs/DKR_MODULE.md](docs/DKR_MODULE.md)
+
 ---
 
 ## Cache de OCR
@@ -314,7 +354,7 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 
 | Modelo | Tamanho | RAM | Qualidade | max_context_chars | Incluso |
 |--------|---------|-----|-----------|-------------------|---------|
-| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | 700 | SIM (padrao) |
+| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | 1200 | SIM (padrao) |
 | Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | 2500 | Nao |
 | Mistral-7B | 4.1 GB | ~8 GB | Excelente | 3000 | Nao |
 | GPT-2 Portuguese | 500 MB | ~2 GB | Basica | 500 | SIM (fallback) |
@@ -628,29 +668,32 @@ rag:
   enabled: true
   
   chunking:
-    strategy: "recursive"    # Estratégia de divisão
-    chunk_size: 400          # Tamanho máximo de cada chunk (caracteres)
-    chunk_overlap: 100       # Sobreposição entre chunks
-    min_chunk_size: 80       # Tamanho mínimo para um chunk válido
+    strategy: "semantic_sections"  # Estratégia de divisão (NOVO: semantic_sections)
+    chunk_size: 800                # Tamanho máximo de cada chunk (caracteres)
+    chunk_overlap: 100             # Sobreposição entre chunks (50-100 recomendado)
+    min_chunk_size: 80             # Tamanho mínimo para um chunk válido
 ```
 
 | Propriedade | Tipo | Padrão | Descrição |
 |-------------|------|--------|-----------|
 | `enabled` | bool | true | Habilita/desabilita o pipeline RAG |
-| `chunking.strategy` | string | "recursive" | `fixed_size`, `sentence`, `paragraph`, `recursive` |
-| `chunking.chunk_size` | int | 400 | **↓ Menor = mais preciso, mais chunks** |
+| `chunking.strategy` | string | "semantic_sections" | `fixed_size`, `sentence`, `paragraph`, `recursive`, `semantic_sections` |
+| `chunking.chunk_size` | int | 800 | **↓ Menor = mais preciso, mais chunks** |
 | `chunking.chunk_overlap` | int | 100 | Caracteres compartilhados entre chunks adjacentes |
 | `chunking.min_chunk_size` | int | 80 | Chunks menores são descartados |
 
 **Estratégias de Chunking:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ fixed_size   : Divide em blocos de tamanho fixo                 │
-│ sentence     : Divide por sentenças (pontuação)                 │
-│ paragraph    : Divide por parágrafos (quebras de linha)         │
-│ recursive    : Tenta dividir por parágrafos, depois sentenças,  │
-│                depois tamanho fixo (RECOMENDADO)                │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│ fixed_size        : Divide em blocos de tamanho fixo                │
+│ sentence          : Divide por sentenças (pontuação)                │
+│ paragraph         : Divide por parágrafos (quebras de linha)        │
+│ recursive         : Tenta dividir por parágrafos, depois sentenças, │
+│                     depois tamanho fixo                             │
+│ semantic_sections : ⭐ NOVO - Divide por seções lógicas do          │
+│                     documento (headers, numeração, palavras-chave)  │
+│                     RECOMENDADO para documentos estruturados        │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Embeddings (Vetorização)
@@ -690,7 +733,9 @@ rag:
     top_k: 10                # Número de chunks a recuperar por query
     min_score: 0.2           # Score mínimo de similaridade
     use_reranking: true      # Re-ordenar resultados por relevância
-    use_hybrid_search: true  # Combinar busca semântica + keywords
+    use_hybrid_search: true  # Combinar busca semântica + BM25
+    bm25_weight: 0.4         # ⭐ NOVO: Peso da busca BM25 (0.0-1.0)
+    semantic_weight: 0.6     # ⭐ NOVO: Peso da busca semântica (0.0-1.0)
     use_mmr: true            # Maximal Marginal Relevance (diversidade)
     mmr_diversity: 0.3       # Peso da diversidade (0.0-1.0)
 ```
@@ -700,9 +745,26 @@ rag:
 | `top_k` | int | 10 | **↑ Maior = mais contexto, mais lento** |
 | `min_score` | float | 0.2 | Chunks com score menor são descartados (0.0-1.0) |
 | `use_reranking` | bool | true | Segunda passada para ordenar por relevância |
-| `use_hybrid_search` | bool | true | Combina busca vetorial + busca por palavras-chave |
+| `use_hybrid_search` | bool | true | Combina busca vetorial (embeddings) + BM25 (lexical) |
+| `bm25_weight` | float | 0.4 | ⭐ Peso da busca BM25 - bom para termos técnicos e siglas |
+| `semantic_weight` | float | 0.6 | ⭐ Peso da busca semântica - bom para significado/contexto |
 | `use_mmr` | bool | true | Evita chunks muito similares entre si |
 | `mmr_diversity` | float | 0.3 | 0.0 = só relevância, 1.0 = só diversidade |
+
+**Busca Híbrida (BM25 + Embeddings):**
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ A busca híbrida combina dois métodos usando RRF (Reciprocal Rank  │
+│ Fusion) para obter o melhor dos dois mundos:                       │
+│                                                                    │
+│ • BM25 (40%): Excelente para termos técnicos, siglas (GPL, AGPL), │
+│               nomes próprios, números de conta, CPF/CNPJ          │
+│                                                                    │
+│ • Embeddings (60%): Excelente para significado, sinônimos,        │
+│                     contexto semântico, perguntas em linguagem    │
+│                     natural                                        │
+└────────────────────────────────────────────────────────────────────┘
+```
 
 #### Generation (Geração de Respostas)
 
@@ -1154,10 +1216,44 @@ Arquivo: src/rag/retriever.py
 
 | Técnica | Descrição | Config |
 |---------|-----------|--------|
-| **Busca Vetorial** | Similaridade de cosseno entre embeddings | Sempre ativo |
-| **Hybrid Search** | Combina vetorial + BM25 (keywords) | `use_hybrid_search: true` |
+| **Busca Vetorial** | Similaridade de cosseno entre embeddings PT-BR | Sempre ativo |
+| **BM25** | ⭐ Busca lexical otimizada para português | `use_hybrid_search: true` |
+| **Hybrid Search (RRF)** | ⭐ Combina vetorial (60%) + BM25 (40%) via RRF | `use_hybrid_search: true` |
 | **Re-ranking** | Segunda passada para refinar ordem | `use_reranking: true` |
 | **MMR** | Maximal Marginal Relevance (diversidade) | `use_mmr: true` |
+
+**⭐ Busca Híbrida (NOVO):**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        BUSCA HÍBRIDA                                    │
+│                                                                         │
+│  Query: "Qual a licença GPL mais crítica?"                              │
+│                                                                         │
+│  ┌─────────────────────┐     ┌─────────────────────┐                    │
+│  │   EMBEDDINGS (60%)  │     │     BM25 (40%)      │                    │
+│  │   neuralmind/bert   │     │   Okapi BM25        │                    │
+│  │   portuguese-cased  │     │   Tokenizer PT-BR   │                    │
+│  │                     │     │                     │                    │
+│  │ • Entende contexto  │     │ • Termos exatos     │                    │
+│  │ • Sinônimos         │     │ • GPL, AGPL, LGPL   │                    │
+│  │ • Significado       │     │ • CPF, CNPJ, ticker │                    │
+│  └──────────┬──────────┘     └──────────┬──────────┘                    │
+│             │                           │                               │
+│             └───────────┬───────────────┘                               │
+│                         │                                               │
+│                         ▼                                               │
+│             ┌───────────────────────┐                                   │
+│             │   RRF (Reciprocal     │                                   │
+│             │   Rank Fusion)        │                                   │
+│             │                       │                                   │
+│             │   score = Σ 1/(k+r)   │                                   │
+│             └───────────┬───────────┘                                   │
+│                         │                                               │
+│                         ▼                                               │
+│             Resultados combinados e re-rankeados                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -1490,9 +1586,11 @@ python run.py --online --use-cloud-generation analyze ata_reuniao.pdf -p meeting
 |------------|---------|------------------|
 | **PDFReader** | `src/core/pdf_reader.py` | Conversão PDF → Imagens |
 | **OCRExtractor** | `src/core/ocr_extractor.py` | Extração de texto via Tesseract |
-| **TextChunker** | `src/rag/chunker.py` | Divisão do texto em chunks |
-| **EmbeddingProvider** | `src/rag/embeddings.py` | Geração de vetores BERT |
+| **TextChunker** | `src/rag/chunker.py` | Divisão do texto em chunks (inclui chunking semântico) |
+| **EmbeddingProvider** | `src/rag/embeddings.py` | Geração de vetores BERT (PT-BR) |
 | **VectorStore** | `src/rag/vector_store.py` | Indexação FAISS |
+| **BM25Retriever** | `src/rag/bm25_retriever.py` | ⭐ **NOVO** - Busca lexical BM25 (Okapi) |
+| **HybridRetriever** | `src/rag/retriever.py` | ⭐ **NOVO** - Combina BM25 + Embeddings via RRF |
 | **Retriever** | `src/rag/retriever.py` | Busca semântica |
 | **LLMExtractor** | `src/rag/llm_extractor.py` | Extração complementar via LLM cloud |
 | **RAGPipeline** | `src/rag/rag_pipeline.py` | Orquestração do pipeline |
@@ -1543,6 +1641,43 @@ Aumente o `dpi` no config.yaml para melhor qualidade de OCR.
 1. **OCR**: Documentos escaneados com baixa qualidade podem ter erros
 2. **Extração**: Baseada em padrões - pode não encontrar todos os casos
 3. **Offline**: Sem atualizações automáticas de modelos
+
+---
+
+## 📋 Changelog
+
+### v1.2.0 (2024-12) - Melhorias de Acurácia RAG
+
+**Novas Funcionalidades:**
+
+- ⭐ **BM25 Retriever**: Implementação do algoritmo Okapi BM25 otimizada para português
+  - Tokenizador com stopwords PT-BR
+  - Preservação de termos técnicos (GPL, AGPL, BTG, etc.)
+  - Normalização de acentos
+  
+- ⭐ **Busca Híbrida (RRF)**: Combina embeddings semânticos + BM25 lexical
+  - Configurável via `bm25_weight` e `semantic_weight`
+  - Reciprocal Rank Fusion para combinação de resultados
+  
+- ⭐ **Chunking Semântico**: Nova estratégia `semantic_sections`
+  - Detecta headers, numeração, palavras-chave
+  - Ideal para documentos estruturados (licenças, contratos)
+  
+- ⭐ **TinyLlama com mais contexto**: ~1200 caracteres (~1000 tokens)
+
+**Melhorias:**
+
+- Documentação atualizada com guias de otimização
+- Configurações padrão otimizadas para português
+- Melhor preservação de contexto entre chunks
+
+**Compatibilidade:**
+
+- ✅ 100% offline (sem novas dependências)
+- ✅ Cache de OCR e Q&A não afetados
+- ✅ Perfis `inventory` e `meeting_minutes` beneficiados automaticamente
+
+---
 
 ## 📄 Licença
 

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Optional
 from rich.console import Console
 from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 import click
 import yaml
@@ -311,20 +312,87 @@ def _create_rag_config():
     """Cria RAGConfig baseado nas configurações do arquivo YAML."""
     from config.settings import get_settings
     from rag.rag_pipeline import RAGConfig
+    from rag.chunker import ChunkingStrategy
     
     settings = get_settings()
+    config_path = Path(__file__).parent.parent / "config.yaml"
     
-    # Obtém configuração de geração do arquivo YAML
+    # Valores padrão
+    chunk_size = 800
+    chunk_overlap = 100
+    chunking_strategy = ChunkingStrategy.SEMANTIC_SECTIONS
+    top_k = 10
+    min_score = 0.2
+    use_hybrid_search = True
+    use_reranking = True
+    use_mmr = True
+    mmr_diversity = 0.3
+    bm25_weight = 0.4
+    semantic_weight = 0.6
     generate_answers = False
+    
+    # Carrega configurações do YAML se existir
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                yaml_config = yaml.safe_load(f)
+            
+            # Chunking
+            chunking = yaml_config.get("rag", {}).get("chunking", {})
+            chunk_size = chunking.get("chunk_size", chunk_size)
+            chunk_overlap = chunking.get("chunk_overlap", chunk_overlap)
+            
+            strategy_str = chunking.get("strategy", "semantic_sections")
+            strategy_map = {
+                "fixed_size": ChunkingStrategy.FIXED_SIZE,
+                "sentence": ChunkingStrategy.SENTENCE,
+                "paragraph": ChunkingStrategy.PARAGRAPH,
+                "recursive": ChunkingStrategy.RECURSIVE,
+                "semantic_sections": ChunkingStrategy.SEMANTIC_SECTIONS,
+            }
+            chunking_strategy = strategy_map.get(strategy_str, chunking_strategy)
+            
+            # Retrieval
+            retrieval = yaml_config.get("rag", {}).get("retrieval", {})
+            top_k = retrieval.get("top_k", top_k)
+            min_score = retrieval.get("min_score", min_score)
+            use_hybrid_search = retrieval.get("use_hybrid_search", use_hybrid_search)
+            use_reranking = retrieval.get("use_reranking", use_reranking)
+            use_mmr = retrieval.get("use_mmr", use_mmr)
+            mmr_diversity = retrieval.get("mmr_diversity", mmr_diversity)
+            bm25_weight = retrieval.get("bm25_weight", bm25_weight)
+            semantic_weight = retrieval.get("semantic_weight", semantic_weight)
+            
+            # Generation
+            generation = yaml_config.get("rag", {}).get("generation", {})
+            generate_answers = generation.get("generate_answers", generate_answers)
+            
+        except Exception as e:
+            logger.warning(f"Erro ao carregar config.yaml: {e}. Usando valores padrão.")
+    
+    # Também verifica settings para generate_answers (pode ser sobrescrito)
     if hasattr(settings, 'rag') and hasattr(settings.rag, 'generation'):
         generate_answers = settings.rag.generation.generate_answers
     
+    logger.info(
+        f"RAGConfig: chunking={chunking_strategy.value}, "
+        f"chunk_size={chunk_size}, overlap={chunk_overlap}, "
+        f"hybrid_search={use_hybrid_search}, bm25_weight={bm25_weight}"
+    )
+    
     return RAGConfig(
         mode="local",
-        chunk_size=400,
-        chunk_overlap=100,
-        top_k=10,
-        use_hybrid_search=True,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        chunking_strategy=chunking_strategy,
+        top_k=top_k,
+        min_score=min_score,
+        use_hybrid_search=use_hybrid_search,
+        use_reranking=use_reranking,
+        use_mmr=use_mmr,
+        mmr_diversity=mmr_diversity,
+        bm25_weight=bm25_weight,
+        semantic_weight=semantic_weight,
         generate_answers=generate_answers
     )
 
@@ -708,6 +776,8 @@ def create_sample():
 @click.option('--no-cache', is_flag=True, help='Desabilita cache de respostas')
 @click.option('--no-ocr-cache', is_flag=True, help='Desabilita cache de OCR')
 @click.option('--list-templates', is_flag=True, help='Lista templates disponiveis e sai')
+@click.option('--explain', is_flag=True, help='Mostra trace do DKR (Domain Knowledge Rules)')
+@click.option('--no-dkr', is_flag=True, help='Desabilita DKR (regras de dominio)')
 def qa(
     pdf_path: Optional[str],
     question: Optional[str],
@@ -718,7 +788,9 @@ def qa(
     model: Optional[str],
     no_cache: bool,
     no_ocr_cache: bool,
-    list_templates: bool
+    list_templates: bool,
+    explain: bool,
+    no_dkr: bool
 ):
     """
     Sistema de Perguntas e Respostas sobre documentos.
@@ -807,6 +879,7 @@ def qa(
     # Configura Q&A
     config = QAConfig()
     config.use_cache = not no_cache
+    config.use_dkr = not no_dkr  # DKR habilitado por padrão
     
     if template:
         config.default_template = template
@@ -815,6 +888,10 @@ def qa(
     if model:
         config.generation_model = model
         console.print(f"[info]Modelo selecionado: {model}[/info]")
+    
+    # Info sobre DKR
+    if no_dkr:
+        console.print("[dim]DKR desabilitado[/dim]")
     
     # Inicializa engine
     qa_engine = QAEngine(config=config)
@@ -851,9 +928,9 @@ def qa(
     console.print()
     
     if interactive:
-        _run_interactive_qa(qa_engine, output, save_txt)
+        _run_interactive_qa(qa_engine, output, save_txt, explain_dkr=explain)
     elif question:
-        _run_single_question(qa_engine, question, save_txt)
+        _run_single_question(qa_engine, question, save_txt, explain_dkr=explain)
 
 
 def _list_qa_templates():
@@ -893,7 +970,7 @@ def _list_qa_templates():
     console.print()
 
 
-def _run_single_question(qa_engine, question: str, save_txt: Optional[str] = None):
+def _run_single_question(qa_engine, question: str, save_txt: Optional[str] = None, explain_dkr: bool = False):
     """Executa uma unica pergunta."""
     console.print(f"[bold]Pergunta:[/bold] {question}\n")
     console.print("Processando...", style="yellow")
@@ -903,6 +980,10 @@ def _run_single_question(qa_engine, question: str, save_txt: Optional[str] = Non
     except Exception as e:
         printer.print_error(f"Erro ao processar pergunta: {e}")
         return
+    
+    # Exibe trace do DKR se solicitado
+    if explain_dkr and response.dkr_result:
+        _print_dkr_trace(response.dkr_result)
     
     # Exibe resposta
     _print_qa_response(response)
@@ -955,7 +1036,43 @@ Resposta do cache: {'Sim' if response.from_cache else 'Nao'}
         printer.print_error(f"Erro ao salvar resposta: {e}")
 
 
-def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optional[str] = None):
+def _print_dkr_trace(dkr_result):
+    """Exibe trace do processamento DKR."""
+    console.print("\n[bold cyan]--- DKR Trace ---[/bold cyan]")
+    
+    # Intent
+    if dkr_result.detected_intent:
+        conf = dkr_result.intent_confidence
+        bar = "[green]" + "█" * int(conf * 10) + "[/green]" + "░" * (10 - int(conf * 10))
+        console.print(f"  Intent: [bold]{dkr_result.detected_intent}[/bold] {bar} {conf:.0%}")
+    else:
+        console.print("  Intent: [dim]Nenhum detectado[/dim]")
+    
+    # Query expansion
+    if dkr_result.query_expanded:
+        console.print(f"  Query expandida: [green]Sim[/green]")
+        console.print(f"    Termos: {dkr_result.expansion_terms}")
+    
+    # Regras
+    console.print(f"  Regras avaliadas: {dkr_result.rules_evaluated}")
+    
+    if dkr_result.rules_triggered:
+        console.print(f"  Regras ativadas: [yellow]{len(dkr_result.rules_triggered)}[/yellow]")
+        for rule in dkr_result.rules_triggered:
+            console.print(f"    [yellow]>[/yellow] {rule}")
+    
+    # Correção
+    if dkr_result.was_corrected:
+        console.print(f"  [bold green]Resposta CORRIGIDA[/bold green]")
+        console.print(f"    Motivo: {dkr_result.correction_reason}")
+    else:
+        console.print(f"  Resposta: [dim]Mantida (sem correção)[/dim]")
+    
+    console.print(f"  Tempo DKR: {dkr_result.processing_time_ms:.1f}ms")
+    console.print("[dim]--- Fim DKR Trace ---[/dim]\n")
+
+
+def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optional[str] = None, explain_dkr: bool = False):
     """Executa modo interativo de Q&A."""
     all_responses = []  # Para salvar todas as respostas
     
@@ -967,6 +1084,8 @@ def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optiona
     console.print("  [yellow]/template[/yellow]  - Muda o template")
     console.print("  [yellow]/modelo[/yellow]    - Muda o modelo de linguagem")
     console.print("  [yellow]/info[/yellow]      - Mostra informacoes do documento")
+    if explain_dkr:
+        console.print("  [cyan]/dkr[/cyan]       - Toggle trace DKR")
     console.print()
     
     while True:
@@ -1066,6 +1185,10 @@ def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optiona
             except Exception as e:
                 printer.print_error(str(e))
                 continue
+            
+            # Exibe trace DKR se habilitado
+            if explain_dkr and response.dkr_result:
+                _print_dkr_trace(response.dkr_result)
             
             # Exibe resposta
             _print_qa_response(response, compact=True)
@@ -1581,6 +1704,94 @@ def main():
             print(f"ERRO: {e}")
         logger.exception("Erro na execucao")
         sys.exit(1)
+
+
+# ============================================
+# COMANDOS DO MÓDULO DKR
+# ============================================
+
+@cli.command()
+@click.argument('action', type=click.Choice(['validate', 'test', 'info', 'list', 'wizard', 'repl']))
+@click.argument('file_path', type=click.Path(), required=False)
+@click.option('-q', '--question', default=None, help='Pergunta para testar (com action=test)')
+@click.option('-a', '--answer', default=None, help='Resposta simulada para testar')
+@click.option('-d', '--dir', 'rules_dir', default='domain_rules', help='Diretório dos arquivos .rules')
+def dkr(action: str, file_path: Optional[str], question: Optional[str], answer: Optional[str], rules_dir: str):
+    """
+    Gerencia Domain Knowledge Rules (DKR).
+    
+    Sistema de regras de domínio para melhorar acurácia das respostas.
+    
+    \b
+    AÇÕES DISPONÍVEIS:
+    
+    \b
+      validate  - Valida sintaxe e semântica de um arquivo .rules
+      test      - Testa regras com pergunta/resposta simulada
+      info      - Exibe informações de um arquivo .rules
+      list      - Lista arquivos .rules disponíveis
+      wizard    - Assistente guiado para criar novo arquivo .rules
+      repl      - REPL interativo para testar regras
+    
+    \b
+    EXEMPLOS:
+    
+    \b
+      python run.py dkr validate domain_rules/licencas_software.rules
+      python run.py dkr test domain_rules/licencas_software.rules -q "pergunta" -a "resposta"
+      python run.py dkr info domain_rules/licencas_software.rules
+      python run.py dkr list
+      python run.py dkr wizard
+      python run.py dkr repl domain_rules/licencas_software.rules
+    """
+    from pathlib import Path
+    
+    if action == 'wizard':
+        # Wizard para criar novo arquivo
+        from dkr.wizard import run_wizard
+        result = run_wizard(Path(rules_dir))
+        if result:
+            printer.print_success(f"Arquivo criado: {result}")
+        return
+    
+    if action == 'repl':
+        # REPL interativo
+        from dkr.repl import run_repl
+        run_repl(file_path)
+        return
+    
+    # Outros comandos via CLI
+    from dkr.cli import DKRCli
+    
+    cli_dkr = DKRCli(rules_dir=Path(rules_dir))
+    
+    if action == 'list':
+        args = ['list', '-d', rules_dir]
+    elif action == 'validate':
+        if not file_path:
+            printer.print_error("Forneça o caminho do arquivo .rules")
+            return
+        args = ['validate', file_path]
+    elif action == 'info':
+        if not file_path:
+            printer.print_error("Forneça o caminho do arquivo .rules")
+            return
+        args = ['info', file_path]
+    elif action == 'test':
+        if not file_path:
+            printer.print_error("Forneça o caminho do arquivo .rules")
+            return
+        args = ['test', file_path]
+        if question:
+            args.extend(['-q', question])
+        if answer:
+            args.extend(['-a', answer])
+    else:
+        printer.print_error(f"Ação desconhecida: {action}")
+        return
+    
+    exit_code = cli_dkr.run(args)
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

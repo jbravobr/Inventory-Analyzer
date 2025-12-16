@@ -1,0 +1,207 @@
+# ═══════════════════════════════════════════════════════════
+#  TEMPLATE DE EXEMPLO - ARQUIVO .RULES COMENTADO
+#  
+#  Este arquivo explica a sintaxe do formato .rules
+#  usado pelo sistema DKR (Domain Knowledge Rules).
+#  
+#  Use este arquivo como referência para criar suas
+#  próprias regras de domínio.
+# ═══════════════════════════════════════════════════════════
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 1: DOMÍNIO
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Define o nome do domínio de conhecimento.
+# Este nome aparece nos logs e relatórios.
+#
+# Sintaxe:
+#   DOMÍNIO: Nome do Domínio
+
+DOMÍNIO: Exemplo Comentado
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 2: FATOS CONHECIDOS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Fatos são conhecimentos estruturados do domínio.
+# O sistema usa esses fatos para validar respostas.
+#
+# Sintaxe:
+#   A/O <nome> tem criticidade <ALTO|MÉDIO|BAIXO>.
+#     Motivo: <justificativa>
+#     Ação: <recomendação>
+#
+# Níveis de Criticidade:
+#   ALTO  - Requer atenção especial, pode causar problemas
+#   MÉDIO - Verificar caso a caso
+#   BAIXO - Geralmente seguro
+
+─────────────────────────────────────────────────────────────
+FATOS CONHECIDOS:
+─────────────────────────────────────────────────────────────
+
+# Exemplo de fato com criticidade ALTA
+A licença AGPL-3.0 tem criticidade ALTO.
+  Motivo: Exige disponibilização do código mesmo para serviços web.
+  Ação: Evitar uso em produtos comerciais.
+
+# Exemplo de fato com criticidade MÉDIA
+A licença GPL-2.0 tem criticidade MÉDIO.
+  Motivo: Copyleft forte com requisitos de compatibilidade.
+  Ação: Verificar compatibilidade antes de usar.
+
+# Exemplo de fato com criticidade BAIXA
+A licença MIT tem criticidade BAIXO.
+  Motivo: Licença permissiva sem requisitos especiais.
+  Ação: Seguro para uso geral.
+
+# Você pode adicionar quantos fatos precisar.
+# Cada fato deve estar em uma linha separada.
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 3: PADRÕES DE INTENÇÃO (Opcional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Intents são padrões que identificam o tipo de pergunta.
+# O sistema detecta automaticamente intents comuns, mas
+# você pode definir os seus próprios.
+#
+# Sintaxe:
+#   nome_do_intent:
+#     - "padrão 1"
+#     - "padrão 2"
+#     Resposta deve conter: "termo1", "termo2"
+
+─────────────────────────────────────────────────────────────
+PADRÕES DE INTENÇÃO:
+─────────────────────────────────────────────────────────────
+
+# Intent para perguntas sobre criticidade alta
+criticidade_alta:
+  - "mais crítica"
+  - "mais perigosa"
+  - "devo evitar"
+  - "maior risco"
+  Resposta deve conter: "ALTO", "AGPL"
+
+# Intent para perguntas sobre licenças seguras
+criticidade_baixa:
+  - "mais segura"
+  - "mais permissiva"
+  - "posso usar"
+  - "recomendada"
+  Resposta deve conter: "BAIXO", "MIT"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 4: EXPANSÃO DE BUSCA (Opcional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Define termos adicionais para melhorar a busca.
+# Quando um intent é detectado, esses termos são
+# adicionados à query para recuperar chunks relevantes.
+#
+# Sintaxe:
+#   Para "nome_intent", adicionar: "termo1", "termo2"
+
+─────────────────────────────────────────────────────────────
+EXPANSÃO DE BUSCA:
+─────────────────────────────────────────────────────────────
+
+Para "criticidade_alta", adicionar: "GRAU DE CRITICIDADE", "ALTO"
+Para "criticidade_baixa", adicionar: "GRAU DE CRITICIDADE", "BAIXO"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 5: REGRAS DE VALIDAÇÃO
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Regras definem QUANDO e COMO corrigir respostas.
+# São a parte mais importante do arquivo .rules.
+#
+# Sintaxe:
+#   QUANDO usuário pergunta "<padrão>"
+#     E resposta menciona "<termo incorreto>"
+#     E resposta NÃO menciona "<termo esperado>"
+#   ENTÃO corrigir para:
+#     <texto de correção em múltiplas linhas>
+#
+# Condições disponíveis:
+#   E resposta menciona "..."     - Resposta contém este termo
+#   E resposta NÃO menciona "..." - Resposta NÃO contém este termo
+#   OU "..."                      - Alternativa ao termo anterior
+#
+# Ações disponíveis:
+#   ENTÃO corrigir para: - Substitui a resposta
+#   ENTÃO manter resposta - Não faz nada (útil para debugging)
+
+─────────────────────────────────────────────────────────────
+REGRAS DE VALIDAÇÃO:
+─────────────────────────────────────────────────────────────
+
+# Regra 1: Corrige quando pergunta sobre "crítica" mas resposta errada
+QUANDO usuário pergunta "mais crítica"
+  E resposta menciona "MIT"
+  E resposta NÃO menciona "AGPL"
+ENTÃO corrigir para:
+  A licença mais crítica é **AGPL-3.0** com criticidade **ALTO**.
+  
+  Justificativa: Exige disponibilização do código mesmo para SaaS.
+  
+  (Resposta corrigida pelo DKR)
+
+# Regra 2: Corrige inversão de criticidade
+QUANDO usuário pergunta "mais segura"
+  E resposta menciona "AGPL"
+ENTÃO corrigir para:
+  As licenças mais seguras são **MIT** e **BSD** (criticidade BAIXO).
+  
+  São licenças permissivas sem requisitos especiais.
+  
+  (Resposta corrigida pelo DKR)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 6: SINÔNIMOS (Opcional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Define sinônimos para melhorar a detecção de termos.
+# Útil quando usuários usam termos diferentes para
+# o mesmo conceito.
+#
+# Sintaxe:
+#   "termo" também pode ser: "sinônimo1", "sinônimo2"
+
+─────────────────────────────────────────────────────────────
+SINÔNIMOS:
+─────────────────────────────────────────────────────────────
+
+"crítica" também pode ser: "perigosa", "arriscada", "restritiva"
+"segura" também pode ser: "permissiva", "liberada", "recomendada"
+"GPL" também pode ser: "GNU GPL", "General Public License"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DICAS E BOAS PRÁTICAS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 1. SEJA ESPECÍFICO NAS REGRAS
+#    Regras muito genéricas podem corrigir respostas corretas.
+#    Use condições específicas como "E resposta NÃO menciona".
+#
+# 2. TESTE SUAS REGRAS
+#    Use o comando: python run.py dkr test arquivo.rules -q "pergunta" -a "resposta"
+#
+# 3. VALIDE O ARQUIVO
+#    Use o comando: python run.py dkr validate arquivo.rules
+#
+# 4. USE O REPL PARA DEBUG
+#    Use o comando: python run.py dkr repl arquivo.rules
+#
+# 5. CUIDADO COM FALSOS POSITIVOS
+#    Termos curtos como "MIT" podem aparecer em outras palavras.
+#    Use termos mais específicos quando possível.
+#
+# 6. ORDEM DAS REGRAS
+#    A primeira regra que corresponder será aplicada.
+#    Coloque regras mais específicas antes das genéricas.
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+

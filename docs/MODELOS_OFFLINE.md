@@ -386,7 +386,7 @@ O parametro `max_context_chars` controla a quantidade maxima de caracteres do do
 
 | Modelo | max_context_chars | Justificativa |
 |--------|-------------------|---------------|
-| TinyLlama | 600-800 | Modelo pequeno com janela de 2048 tokens. Prompts simples funcionam melhor. Valores maiores podem causar erro de "tokens exceed context". |
+| TinyLlama | 1000-1200 | ⭐ **Otimizado** - Janela de 2048 tokens. Configurado para ~1000 tokens de contexto efetivo (~1200 chars PT-BR). |
 | Phi-3 Mini | 2000-3000 | Janela de 4096 tokens permite mais contexto. Melhor compreensao de documentos longos. |
 | Mistral 7B | 2500-3500 | Janela grande e modelo robusto. Consegue processar contextos maiores com qualidade. |
 | GPT-2 Portuguese | 400-600 | Modelo muito limitado. Contextos maiores degradam a qualidade. |

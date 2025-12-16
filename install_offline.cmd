@@ -45,6 +45,9 @@ echo.
 echo [4/4] Criando diretorios de trabalho...
 if not exist output mkdir output
 if not exist cache mkdir cache
+if not exist cache\qa_responses mkdir cache\qa_responses
+if not exist cache\dkr mkdir cache\dkr
+if not exist domain_rules mkdir domain_rules
 
 echo.
 echo ============================================
@@ -57,8 +60,13 @@ echo   meeting_minutes  - Ata de Reuniao de Quotistas
 echo.
 echo Para usar:
 echo   1. execute: call venv\Scripts\activate.bat
-echo   2. execute: python run.py analyze ^<arquivo.pdf^>
-echo   3. ou com perfil: python run.py analyze ^<arquivo.pdf^> -p meeting_minutes
+echo   2. Analise: python run.py analyze ^<arquivo.pdf^>
+echo   3. Q^&A:     python run.py qa ^<arquivo.pdf^> -q "sua pergunta"
+echo.
+echo Comandos adicionais:
+echo   python run.py qa --list-templates      # Templates Q^&A disponiveis
+echo   python run.py dkr list                 # Regras de dominio disponiveis
+echo   python run.py models                   # Modelos de linguagem disponiveis
 echo.
 
 endlocal

@@ -223,7 +223,7 @@ rag:
 ```yaml
 rag:
   chunking:
-    strategy: "recursive"    # Opções: fixed_size, sentence, paragraph, recursive
+    strategy: "semantic_sections"    # Opções: fixed_size, sentence, paragraph, recursive, semantic_sections
 ```
 
 | Estratégia | Descrição | Melhor Para |
@@ -231,7 +231,31 @@ rag:
 | `fixed_size` | Divide a cada N caracteres | Textos uniformes |
 | `sentence` | Divide por sentenças (pontuação) | Textos narrativos |
 | `paragraph` | Divide por parágrafos | Documentos bem formatados |
-| `recursive` | Tenta parágrafo → sentença → tamanho | **Recomendado (maioria)** |
+| `recursive` | Tenta parágrafo → sentença → tamanho | Documentos gerais |
+| `semantic_sections` | ⭐ **NOVO** - Detecta seções lógicas (headers, numeração, palavras-chave) | **Recomendado para documentos estruturados** |
+
+### 2.2.1 ⭐ Chunking Semântico por Seções (NOVO)
+
+A estratégia `semantic_sections` é ideal para documentos estruturados como:
+- Licenças de software
+- Contratos jurídicos
+- Atas de reunião
+- Escrituras de inventário
+
+**O que ela detecta:**
+- Headers em maiúsculas
+- Numeração de seções (1., 1.1, I., a), etc.)
+- Palavras-chave de domínio (GPL, AGPL, COMPATIBILIDADE, etc.)
+- Cláusulas e artigos
+
+**Configuração otimizada para licenças:**
+```yaml
+rag:
+  chunking:
+    strategy: "semantic_sections"
+    chunk_size: 800       # Chunks maiores para mais contexto
+    chunk_overlap: 100    # 50-100 recomendado
+```
 
 ---
 
@@ -295,20 +319,31 @@ rag:
 
 ---
 
-### 3.3 Habilitar Busca Híbrida
+### 3.3 Habilitar Busca Híbrida (BM25 + Embeddings)
 
-**O que é:** Combina busca semântica (significado) + busca por keywords (palavras exatas).
+**O que é:** Combina busca semântica (embeddings) + busca lexical BM25 (palavras exatas).
 
 ```yaml
 rag:
   retrieval:
     use_hybrid_search: true    # Recomendado: true
+    bm25_weight: 0.4           # ⭐ NOVO: Peso do BM25
+    semantic_weight: 0.6       # ⭐ NOVO: Peso dos embeddings
 ```
 
 **Por que usar:**
-- Busca semântica encontra sinônimos ("herdeiro" ≈ "sucessor")
-- Busca por keywords encontra termos exatos ("CPF 123.456.789-00")
-- Combinadas = melhor cobertura
+- **Embeddings semânticos** encontram sinônimos ("herdeiro" ≈ "sucessor"), significado contextual
+- **BM25** encontra termos técnicos exatos (GPL, AGPL, CPF, números de conta, tickers)
+- Combinadas via **RRF (Reciprocal Rank Fusion)** = melhor cobertura
+
+**Quando ajustar os pesos:**
+
+| Cenário | bm25_weight | semantic_weight | Motivo |
+|---------|-------------|-----------------|--------|
+| Documentos técnicos (licenças, contratos) | 0.4-0.5 | 0.5-0.6 | Termos técnicos importantes |
+| Perguntas em linguagem natural | 0.3 | 0.7 | Semântica mais relevante |
+| Busca por siglas/códigos | 0.6 | 0.4 | BM25 melhor para exatos |
+| Balanceado (padrão) | 0.4 | 0.6 | Bom para maioria |
 
 ---
 

@@ -20,7 +20,7 @@ from models.document import Document
 from .embeddings import EmbeddingProvider, LocalEmbeddings, CloudEmbeddings
 from .chunker import TextChunker, ChunkingConfig, ChunkingStrategy, Chunk
 from .vector_store import VectorStore, FAISSVectorStore, SimpleVectorStore
-from .retriever import Retriever, HybridRetriever, RetrievalResult
+from .retriever import Retriever, HybridRetriever, HybridRetrieverV2, RetrievalResult
 from .generator import (
     ResponseGenerator,
     LocalGenerator,
@@ -39,17 +39,21 @@ class RAGConfig:
     mode: str = "local"  # "local" ou "cloud"
     
     # Chunking
-    chunk_size: int = 512
-    chunk_overlap: int = 50
-    chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE
+    chunk_size: int = 800
+    chunk_overlap: int = 100
+    chunking_strategy: ChunkingStrategy = ChunkingStrategy.SEMANTIC_SECTIONS
     
     # Retrieval
     top_k: int = 5
     min_score: float = 0.3
     use_reranking: bool = False
-    use_hybrid_search: bool = False
+    use_hybrid_search: bool = True  # ATIVADO por padrão: usa BM25 + embeddings
     use_mmr: bool = False
     mmr_diversity: float = 0.3
+    
+    # Pesos da busca híbrida (BM25 + embeddings)
+    bm25_weight: float = 0.4       # Peso do BM25 (lexical)
+    semantic_weight: float = 0.6   # Peso dos embeddings (semântico)
     
     # Generation
     generate_answers: bool = False  # Se deve gerar respostas com LLM
@@ -191,7 +195,17 @@ class RAGPipeline:
         """Obtém retriever."""
         if self._retriever is None:
             if self.config.use_hybrid_search:
-                self._retriever = HybridRetriever(self.vector_store, self.settings)
+                # Usa HybridRetrieverV2 com BM25 + embeddings (RRF)
+                self._retriever = HybridRetrieverV2(
+                    vector_store=self.vector_store,
+                    settings=self.settings,
+                    bm25_weight=self.config.bm25_weight,
+                    semantic_weight=self.config.semantic_weight,
+                )
+                logger.info(
+                    f"Usando HybridRetrieverV2 (BM25={self.config.bm25_weight:.0%}, "
+                    f"Semantic={self.config.semantic_weight:.0%})"
+                )
             else:
                 self._retriever = Retriever(self.vector_store, self.settings)
         return self._retriever
@@ -529,4 +543,49 @@ class RAGPipelineBuilder:
         builder._config.top_k = 5
         builder._config.min_score = 0.3
         builder._config.use_reranking = True
+        return builder
+    
+    @classmethod
+    def for_license_documents(cls) -> "RAGPipelineBuilder":
+        """
+        Cria builder pré-configurado para documentos de licenças de software.
+        
+        Otimizado para:
+        - Detecção de seções lógicas (GPL, AGPL, LGPL, etc.)
+        - Busca híbrida BM25 + embeddings
+        - Chunks maiores para mais contexto
+        """
+        builder = cls()
+        builder._config.chunk_size = 800
+        builder._config.chunk_overlap = 100
+        builder._config.chunking_strategy = ChunkingStrategy.SEMANTIC_SECTIONS
+        builder._config.top_k = 10
+        builder._config.min_score = 0.2
+        builder._config.use_hybrid_search = True
+        builder._config.use_reranking = True
+        builder._config.bm25_weight = 0.4
+        builder._config.semantic_weight = 0.6
+        return builder
+    
+    @classmethod
+    def for_qa(cls) -> "RAGPipelineBuilder":
+        """
+        Cria builder pré-configurado para Q&A.
+        
+        Otimizado para:
+        - Chunks maiores com mais overlap
+        - Busca híbrida para melhor precisão
+        - MMR para diversidade de resultados
+        """
+        builder = cls()
+        builder._config.chunk_size = 1000
+        builder._config.chunk_overlap = 150
+        builder._config.chunking_strategy = ChunkingStrategy.SEMANTIC_SECTIONS
+        builder._config.top_k = 8
+        builder._config.min_score = 0.2
+        builder._config.use_hybrid_search = True
+        builder._config.use_mmr = True
+        builder._config.mmr_diversity = 0.3
+        builder._config.bm25_weight = 0.4
+        builder._config.semantic_weight = 0.6
         return builder

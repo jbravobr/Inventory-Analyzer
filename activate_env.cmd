@@ -115,9 +115,19 @@ echo   python run.py profiles                      - Listar perfis de analise
 echo   python run.py info                          - Ver configuracoes
 echo.
 
+echo [96mDomain Knowledge Rules (DKR):[0m
+echo   python run.py dkr list                      - Listar regras de dominio
+echo   python run.py dkr validate                  - Validar arquivos .rules
+echo   python run.py dkr test ^<arquivo.rules^>      - Testar regras
+echo   python run.py dkr wizard                    - Assistente para criar regras
+echo   python run.py dkr repl                      - Console interativo DKR
+echo.
+
 echo [96mOpcoes do Q^&A:[0m
 echo   --template ^<nome^>     - Usar template especifico
 echo   --model ^<nome^>        - Usar modelo especifico (tinyllama, gpt2-portuguese)
+echo   --explain             - Mostrar trace das regras DKR aplicadas
+echo   --no-dkr              - Desabilitar regras de dominio
 echo   --save-txt ^<arquivo^>  - Salvar resposta em arquivo TXT
 echo.
 
@@ -130,6 +140,7 @@ echo [93mExemplos:[0m
 echo   python run.py analyze escritura.pdf -o ./resultado
 echo   python run.py qa contrato.pdf -q "Qual o valor total?" --save-txt resp.txt
 echo   python run.py qa documento.pdf -i --template licencas_software
+echo   python run.py qa licencas.pdf -q "Qual a licenca mais critica?" --explain
 echo.
 
 echo [93mPara ativar TinyLlama (melhor qualidade):[0m

@@ -169,12 +169,12 @@ class InventoryAnalyzer:
         
         Args:
             config: Configuração do pipeline RAG.
+                    Se não fornecido, usa configurações do config.yaml.
         """
+        # Se config não fornecido, usa valores padrão do RAGConfig 
+        # que já são carregados do config.yaml
         self.config = config or RAGConfig(
             mode="local",
-            chunk_size=400,
-            chunk_overlap=100,
-            top_k=10,
             use_hybrid_search=True,
             generate_answers=False  # Usa apenas retrieval por padrão
         )

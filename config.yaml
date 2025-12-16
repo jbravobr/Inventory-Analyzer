@@ -101,12 +101,22 @@ nlp:
 rag:
   enabled: true
   
-  # Chunking otimizado para documentos jurídicos
+  # ============================================
+  # Chunking otimizado para Q&A
+  # ============================================
+  # Estratégias disponíveis:
+  #   - recursive: Divisão hierárquica por separadores (padrão anterior)
+  #   - semantic_sections: Detecta seções lógicas (RECOMENDADO para licenças)
+  #   - paragraph: Preserva parágrafos inteiros
+  #   - sentence: Agrupa sentenças
+  #   - fixed_size: Tamanho fixo com overlap
+  #
+  # NOTA: chunk_overlap de 50-100 tokens evita perda de contexto entre chunks
   chunking:
-    strategy: "recursive"
-    chunk_size: 400       # Chunks menores para documentos jurídicos
-    chunk_overlap: 100    # Maior sobreposição
-    min_chunk_size: 80
+    strategy: "semantic_sections"    # NOVO: detecta seções lógicas do documento
+    chunk_size: 800                  # Chunks maiores para mais contexto
+    chunk_overlap: 100               # 100 tokens de overlap (50-100 recomendado)
+    min_chunk_size: 100
   
   # Embeddings OFFLINE
   embeddings:
@@ -120,14 +130,24 @@ rag:
     use_gpu: false
     index_path: "./cache/index"
   
-  # Retrieval otimizado
+  # ============================================
+  # Retrieval otimizado com BM25 + Embeddings
+  # ============================================
+  # O sistema usa busca híbrida que combina:
+  # 1. BM25 (lexical): Bom para termos técnicos, nomes, siglas (GPL, AGPL, etc.)
+  # 2. Embeddings semânticos: Bom para significado e contexto
+  # 3. RRF (Reciprocal Rank Fusion): Combina os rankings de forma robusta
   retrieval:
-    top_k: 10             # Mais contexto
-    min_score: 0.2        # Score mínimo baixo
-    use_reranking: true
-    use_hybrid_search: true
-    use_mmr: true
-    mmr_diversity: 0.3
+    top_k: 10                      # Número de chunks a retornar
+    min_score: 0.2                 # Score mínimo de relevância
+    use_reranking: true            # Re-ranking com cross-encoder
+    use_hybrid_search: true        # Combina BM25 + embeddings (RECOMENDADO)
+    use_mmr: true                  # Maximal Marginal Relevance (diversidade)
+    mmr_diversity: 0.3             # Peso da diversidade (0.0 a 1.0)
+    
+    # Pesos da busca híbrida (soma deve ser 1.0)
+    bm25_weight: 0.4               # Peso do BM25 (lexical)
+    semantic_weight: 0.6           # Peso dos embeddings (semântico)
   
   # ============================================
   # GERACAO (local e cloud)
@@ -169,12 +189,14 @@ rag:
     models:
       # TinyLlama 1.1B - PADRAO RECOMENDADO
       # Equilibrio entre tamanho e qualidade
+      # NOTA: Com 2048 tokens de contexto e ~4 chars/token em PT-BR,
+      #       usamos ~1200 chars de contexto + ~500 para prompt = margem segura
       tinyllama:
         type: "gguf"
         path: "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
         context_length: 2048
-        max_tokens: 512
-        max_context_chars: 700     # Modelo pequeno, janela limitada de 2048 tokens
+        max_tokens: 256           # Reduzido para dar mais espaço ao contexto
+        max_context_chars: 600    # Contexto mais conservador para caber no prompt total
         description: "TinyLlama 1.1B - Bom para Q&A, ~2GB RAM"
         
       # Phi-3 Mini - ALTA QUALIDADE

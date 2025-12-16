@@ -33,6 +33,7 @@ class CachedResponse:
     access_count: int = 0
     last_accessed: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    rules_hash: str = ""  # Hash do arquivo .rules usado (para invalidação)
     
     def to_dict(self) -> dict:
         return {
@@ -46,6 +47,7 @@ class CachedResponse:
             "access_count": self.access_count,
             "last_accessed": self.last_accessed.isoformat(),
             "metadata": self.metadata,
+            "rules_hash": self.rules_hash,
         }
     
     @classmethod
@@ -63,6 +65,7 @@ class CachedResponse:
                 data.get("last_accessed", data["created_at"])
             ),
             metadata=data.get("metadata", {}),
+            rules_hash=data.get("rules_hash", ""),
         )
 
 
@@ -131,7 +134,8 @@ class ResponseCache:
         question: str,
         document_name: str,
         context: str,
-        template: str = ""
+        template: str = "",
+        rules_hash: str = ""
     ) -> Optional[CachedResponse]:
         """
         Obtém resposta do cache.
@@ -141,6 +145,7 @@ class ResponseCache:
             document_name: Nome do documento
             context: Contexto atual (para verificar se mudou)
             template: Template usado
+            rules_hash: Hash do arquivo .rules atual
         
         Returns:
             CachedResponse ou None se não encontrado/expirado
@@ -166,6 +171,12 @@ class ResponseCache:
                 logger.debug(f"Contexto mudou, cache invalidado: {key}")
                 return None
             
+            # Verifica se regras DKR mudaram
+            if rules_hash and cached.rules_hash and cached.rules_hash != rules_hash:
+                del self._cache[key]
+                logger.debug(f"Regras DKR mudaram, cache invalidado: {key}")
+                return None
+            
             # Atualiza estatísticas
             cached.access_count += 1
             cached.last_accessed = datetime.now()
@@ -182,7 +193,8 @@ class ResponseCache:
         pages: List[int],
         confidence: float,
         template: str = "",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        rules_hash: str = ""
     ) -> str:
         """
         Armazena resposta no cache.
@@ -196,6 +208,7 @@ class ResponseCache:
             confidence: Confiança da resposta
             template: Template usado
             metadata: Metadados adicionais
+            rules_hash: Hash do arquivo .rules usado
         
         Returns:
             Chave do cache
@@ -212,6 +225,7 @@ class ResponseCache:
             template_used=template,
             created_at=datetime.now(),
             metadata=metadata or {},
+            rules_hash=rules_hash,
         )
         
         with self._lock:

@@ -57,14 +57,17 @@ class GGUFModelConfig:
 # Configuracoes pre-definidas para modelos populares
 # max_context_chars: controla quanto do documento e enviado ao modelo
 # Valores recomendados baseados em testes de qualidade vs performance
+# NOTA: TinyLlama tem 2048 tokens de contexto. Com ~4 chars/token em PT-BR,
+#       podemos usar ~1200-1500 chars de contexto para o documento
+#       + ~500 chars para prompt/instruções = margem segura
 PREDEFINED_MODELS = {
     "tinyllama": GGUFModelConfig(
         name="TinyLlama-1.1B-Chat",
         path="./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
         description="TinyLlama 1.1B - Leve e rapido, bom para Q&A basico",
         context_length=2048,
-        max_tokens=512,
-        max_context_chars=700,  # Modelo pequeno, janela limitada de 2048 tokens
+        max_tokens=256,  # Reduzido de 512 para dar mais espaço ao contexto
+        max_context_chars=800,  # Contexto controlado para caber no prompt total
         prompt_template="chatml",
     ),
     "phi3-mini": GGUFModelConfig(

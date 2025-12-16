@@ -16,6 +16,7 @@ O modulo Q&A permite fazer perguntas em linguagem natural sobre documentos PDF e
 - **Cache de OCR**: Evita reprocessamento de PDFs ja lidos
 - **Exportacao para TXT**: Salva respostas em arquivo de texto
 - **Validacao anti-alucinacao**: Verifica se respostas estao fundamentadas
+- **DKR (Domain Knowledge Rules)**: Regras de dominio para corrigir respostas automaticamente
 
 ---
 
@@ -109,12 +110,14 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 
 ### Modelos Disponiveis
 
-| Modelo | ID | RAM | Qualidade | Velocidade |
-|--------|-----|-----|-----------|------------|
-| TinyLlama-1.1B | `tinyllama` | ~2 GB | Boa | Rapido |
-| Phi-3-Mini | `phi3-mini` | ~6 GB | Excelente | Media |
-| Mistral-7B | `mistral-7b` | ~8 GB | Excelente | Lento |
-| GPT-2 Portuguese | `gpt2-portuguese` | ~2 GB | Basica | Rapido |
+| Modelo | ID | RAM | Qualidade | Velocidade | Contexto |
+|--------|-----|-----|-----------|------------|----------|
+| TinyLlama-1.1B | `tinyllama` | ~2 GB | Boa | Rapido | ~1200 chars |
+| Phi-3-Mini | `phi3-mini` | ~6 GB | Excelente | Media | ~2500 chars |
+| Mistral-7B | `mistral-7b` | ~8 GB | Excelente | Lento | ~3000 chars |
+| GPT-2 Portuguese | `gpt2-portuguese` | ~2 GB | Basica | Rapido | ~500 chars |
+
+> **Nota**: O TinyLlama agora suporta ~1200 caracteres de contexto (~1000 tokens), melhorando significativamente a qualidade das respostas.
 
 ### Como Usar
 
@@ -276,6 +279,25 @@ qa:
   cache:
     enabled: true
     ttl_hours: 24
+
+# Configurações RAG que afetam o Q&A
+rag:
+  chunking:
+    strategy: "semantic_sections"  # ⭐ Chunking por seções lógicas
+    chunk_size: 800
+    chunk_overlap: 100
+
+  retrieval:
+    top_k: 10
+    use_hybrid_search: true        # ⭐ Busca híbrida (BM25 + Embeddings)
+    bm25_weight: 0.4               # Peso do BM25
+    semantic_weight: 0.6           # Peso dos embeddings
+    use_reranking: true
+
+  generation:
+    models:
+      tinyllama:
+        max_context_chars: 1200    # ⭐ ~1000 tokens de contexto
 ```
 
 ### Opções de Configuração
@@ -336,25 +358,30 @@ src/qa/
 ```
 1. Carrega documento PDF
        ↓
-2. Extrai texto (OCR se necessário)
+2. Extrai texto (OCR se necessário) → Cache de OCR
        ↓
-3. Indexa chunks no RAG
+3. Chunking Semântico (detecta seções lógicas)
        ↓
-4. Extrai conhecimento estruturado
+4. Embeddings em Português (neuralmind/bert-base-portuguese-cased)
        ↓
-5. Seleciona template
+5. Indexa chunks no VectorStore (FAISS)
        ↓
 6. Recebe pergunta do usuário
        ↓
-7. Verifica cache
+7. Verifica cache de respostas
        ↓
-8. Busca contexto relevante (retrieval)
+8. Busca Híbrida:
+   • BM25 (40%) - termos técnicos, siglas
+   • Embeddings (60%) - significado, contexto
+   • RRF (Reciprocal Rank Fusion) - combinação
        ↓
-9. Gera resposta com template
+9. Re-ranking dos resultados
        ↓
-10. Valida resposta
+10. Gera resposta com template + modelo (TinyLlama)
        ↓
-11. Retorna ao usuário
+11. Valida resposta (anti-alucinação)
+       ↓
+12. Retorna ao usuário + Cache
 ```
 
 ---
@@ -431,6 +458,60 @@ result = kb.check_compatibility("MIT", "GPL-3.0")
 # Buscar na base
 results = kb.search("distribuição")
 ```
+
+---
+
+## Domain Knowledge Rules (DKR)
+
+O módulo DKR permite definir regras de domínio para melhorar a acurácia das respostas.
+
+### Uso Básico
+
+```bash
+# Q&A com trace de debug
+python run.py qa documento.pdf -q "pergunta" --explain
+
+# Desabilitar DKR temporariamente
+python run.py qa documento.pdf -q "pergunta" --no-dkr
+```
+
+### Comandos DKR
+
+```bash
+# Listar arquivos de regras
+python run.py dkr list
+
+# Validar sintaxe
+python run.py dkr validate domain_rules/licencas_software.rules
+
+# Testar regra
+python run.py dkr test domain_rules/licencas_software.rules -q "pergunta" -a "resposta"
+
+# Criar novo arquivo (wizard)
+python run.py dkr wizard
+
+# REPL interativo
+python run.py dkr repl domain_rules/licencas_software.rules
+```
+
+### Exemplo de Arquivo .rules
+
+```
+DOMÍNIO: Licenças de Software
+
+FATOS CONHECIDOS:
+A licença AGPL-3.0 tem criticidade ALTO.
+  Motivo: Copyleft com obrigações SaaS.
+
+REGRAS DE VALIDAÇÃO:
+QUANDO usuário pergunta "mais crítica"
+  E resposta menciona "MIT"
+  E resposta NÃO menciona "AGPL"
+ENTÃO corrigir para:
+  A licença mais crítica é AGPL-3.0 (ALTO).
+```
+
+> Para documentação completa, veja [DKR_MODULE.md](DKR_MODULE.md)
 
 ---
 
