@@ -188,6 +188,157 @@ python run.py profiles
 python run.py info
 ```
 
+---
+
+## Sistema Q&A - Perguntas e Respostas
+
+O modulo Q&A permite fazer perguntas em linguagem natural sobre qualquer documento PDF.
+
+### Pergunta Unica
+
+```powershell
+python run.py qa documento.pdf -q "Qual e a licenca mais critica?"
+```
+
+### Modo Interativo
+
+```powershell
+python run.py qa documento.pdf -i
+```
+
+### Com Template Especifico
+
+```powershell
+python run.py qa analise-licencas.pdf -q "GPL e compativel com MIT?" --template licencas_software
+```
+
+### Salvar Resposta em TXT
+
+```powershell
+python run.py qa documento.pdf -q "Qual o valor total?" --save-txt resposta.txt
+```
+
+### Usar Modelo Especifico
+
+```powershell
+# TinyLlama (padrao, recomendado)
+python run.py qa documento.pdf -q "pergunta" --model tinyllama
+
+# Phi-3 Mini (melhor qualidade)
+python run.py qa documento.pdf -q "pergunta" --model phi3-mini
+
+# GPT-2 Portuguese (fallback)
+python run.py qa documento.pdf -q "pergunta" --model gpt2-portuguese
+```
+
+### Templates Disponiveis
+
+| Template | Descricao | Uso Ideal |
+|----------|-----------|-----------|
+| `sistema_padrao` | Template generico (padrao) | Qualquer documento |
+| `licencas_software` | Licencas open source | GPL, MIT, Apache |
+| `contratos` | Documentos juridicos | Contratos, termos |
+| `atas_reuniao` | Atas corporativas | Assembleias |
+| `inventario` | Escrituras | Inventarios |
+
+### Listar Templates
+
+```powershell
+python run.py qa --list-templates
+```
+
+### Criar Seus Proprios Templates
+
+Os templates sao arquivos `.txt` simples que ficam em `instructions/qa_templates/`.
+
+Veja o guia completo em: `instructions/qa_templates/_COMO_CRIAR_TEMPLATES.txt`
+
+### Gerenciar Cache de Respostas Q&A
+
+```powershell
+# Ver estatisticas do cache
+python run.py qa-cache --stats
+
+# Limpar cache
+python run.py qa-cache --clear
+
+# Ver perguntas frequentes
+python run.py qa-cache --frequent
+```
+
+> Para documentacao completa do Q&A, veja [docs/QA_MODULE.md](docs/QA_MODULE.md)
+
+---
+
+## Cache de OCR
+
+O sistema armazena automaticamente o texto extraido de PDFs para evitar reprocessamento.
+
+### Comandos de Cache OCR
+
+```powershell
+# Listar documentos em cache
+python run.py ocr-cache --list
+
+# Ver estatisticas
+python run.py ocr-cache --stats
+
+# Remover documento do cache
+python run.py ocr-cache --remove "documento.pdf"
+
+# Limpar todo o cache
+python run.py ocr-cache --clear
+
+# Limpar entradas expiradas
+python run.py ocr-cache --cleanup
+```
+
+> Para documentacao completa, veja [docs/CACHE_OCR.md](docs/CACHE_OCR.md)
+
+---
+
+## Modelos de Linguagem Offline
+
+O sistema suporta multiplos modelos de linguagem para geracao de respostas.
+
+### Status dos Modelos
+
+| Modelo | Tamanho | RAM | Qualidade | Incluso no Repo |
+|--------|---------|-----|-----------|-----------------|
+| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | SIM (padrao) |
+| GPT-2 Portuguese | 500 MB | ~2 GB | Basica | SIM (fallback) |
+| Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | Nao |
+| Mistral-7B | 4 GB | ~8 GB | Excelente | Nao |
+
+### Ativar TinyLlama (Recomendado)
+
+O modelo TinyLlama ja esta incluso no repositorio. Para ativa-lo:
+
+```powershell
+# Executar script de instalacao
+.\scripts\install_llama_cpp.ps1
+
+# OU instalar manualmente
+pip install llama-cpp-python
+```
+
+**Nota:** Requer Visual Studio Build Tools para compilar.
+Se a instalacao falhar, o sistema usa GPT-2 automaticamente.
+
+### Verificar Modelos
+
+```powershell
+# Verificar status dos modelos
+python run.py models --check
+
+# Listar todos os modelos
+python run.py models --list
+```
+
+> Para documentacao completa, veja [docs/MODELOS_OFFLINE.md](docs/MODELOS_OFFLINE.md)
+
+---
+
 ### Mudar perfil padrão
 
 Edite o arquivo `config.yaml` e altere:

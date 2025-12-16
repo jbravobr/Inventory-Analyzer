@@ -3,12 +3,12 @@
 """
 CLI principal do Document Analyzer.
 
-Suporta múltiplos perfis de análise:
-- inventory: Escritura Pública de Inventário
-- meeting_minutes: Ata de Reunião de Quotistas
+Suporta multiplos perfis de analise:
+- inventory: Escritura Publica de Inventario
+- meeting_minutes: Ata de Reuniao de Quotistas
 
-Suporta múltiplos modos de operação:
-- offline: 100% local, sem conexão à internet (PADRÃO)
+Suporta multiplos modos de operacao:
+- offline: 100% local, sem conexao a internet (PADRAO)
 - online: Permite downloads e APIs cloud
 - hybrid: Tenta online, usa cache local se falhar
 """
@@ -22,10 +22,10 @@ from typing import Optional
 
 import click
 import yaml
-from rich.console import Console
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
+
+# Configura encoding UTF-8 para Windows ANTES de qualquer output
+from utils.console_utils import setup_encoding, get_console, get_printer, ASCII_CHARS
+setup_encoding()
 
 # Configura logging
 logging.basicConfig(
@@ -34,7 +34,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-console = Console()
+# Console seguro para Windows/Unix
+console = get_console()
+printer = get_printer()
 
 # Contexto global para passar flags entre comandos
 class Context:
@@ -243,7 +245,7 @@ def analyze(
             txt_path = output_dir / f"{base_name}_relatorio_{timestamp}.txt"
             report_gen = MeetingMinutesReportGenerator()
             report_gen.generate(result, txt_path, pdf_path.name)
-            console.print(f"✓ Relatório TXT: [green]{txt_path}[/green]")
+            console.print(f"[OK] Relatorio TXT: [green]{txt_path}[/green]")
         
         if pdf:
             from inventory.meeting_minutes_highlighter import MeetingMinutesPDFHighlighter
@@ -258,13 +260,13 @@ def analyze(
                 task = progress.add_task("Gerando PDF com highlights...", total=None)
                 highlighter.generate_highlighted_pdf(pdf_path, result, pdf_output)
             
-            console.print(f"✓ PDF com highlights: [green]{pdf_output}[/green]")
+            console.print(f"[OK] PDF com highlights: [green]{pdf_output}[/green]")
         
         if output_json:
             json_path = output_dir / f"{base_name}_resultado_{timestamp}.json"
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-            console.print(f"✓ Resultado JSON: [green]{json_path}[/green]")
+            console.print(f"[OK] Resultado JSON: [green]{json_path}[/green]")
     
     else:  # inventory (padrão)
         result = _analyze_inventory(pdf_path)
@@ -276,7 +278,7 @@ def analyze(
             txt_path = output_dir / f"{base_name}_relatorio_{timestamp}.txt"
             report_gen = ReportGenerator()
             report_gen.generate(result, txt_path, pdf_path.name)
-            console.print(f"✓ Relatório TXT: [green]{txt_path}[/green]")
+            console.print(f"[OK] Relatorio TXT: [green]{txt_path}[/green]")
         
         if pdf:
             from inventory.pdf_highlighter import PDFHighlighter
@@ -291,13 +293,13 @@ def analyze(
                 task = progress.add_task("Gerando PDF com highlights...", total=None)
                 highlighter.generate_highlighted_pdf(pdf_path, result, pdf_output)
             
-            console.print(f"✓ PDF com highlights: [green]{pdf_output}[/green]")
+            console.print(f"[OK] PDF com highlights: [green]{pdf_output}[/green]")
         
         if output_json:
             json_path = output_dir / f"{base_name}_resultado_{timestamp}.json"
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
-            console.print(f"✓ Resultado JSON: [green]{json_path}[/green]")
+            console.print(f"[OK] Resultado JSON: [green]{json_path}[/green]")
     
     console.print(f"\n[bold green]Análise concluída em {result.processing_time:.2f}s[/bold green]")
     console.print(f"Arquivos salvos em: [cyan]{output_dir}[/cyan]\n")
@@ -529,7 +531,7 @@ def extract(pdf_path: str, output: str):
             f.write(page.text or "(sem texto)")
             f.write("\n\n")
     
-    console.print(f"✓ Texto extraído: [green]{output_file}[/green]")
+    console.print(f"[OK] Texto extraido: [green]{output_file}[/green]")
     console.print(f"Total de páginas: {len(document.pages)}")
 
 
@@ -608,23 +610,23 @@ def info(ctx: Context):
     try:
         import pytesseract
         langs = pytesseract.get_languages()
-        console.print(f"  ✓ Tesseract: {', '.join(langs)}", style="green")
+        console.print(f"  [OK] Tesseract: {', '.join(langs)}", style="green")
     except Exception as e:
-        console.print(f"  ✗ Tesseract: {e}", style="red")
+        console.print(f"  [ERRO] Tesseract: {e}", style="red")
     
     # FAISS
     try:
         import faiss
-        console.print("  ✓ FAISS disponível", style="green")
+        console.print("  [OK] FAISS disponivel", style="green")
     except ImportError:
-        console.print("  ✗ FAISS não instalado", style="red")
+        console.print("  [ERRO] FAISS nao instalado", style="red")
     
     # Sentence Transformers
     try:
         from sentence_transformers import SentenceTransformer
-        console.print("  ✓ Sentence Transformers disponível", style="green")
+        console.print("  [OK] Sentence Transformers disponivel", style="green")
     except ImportError:
-        console.print("  ✗ Sentence Transformers não instalado", style="red")
+        console.print("  [ERRO] Sentence Transformers nao instalado", style="red")
 
 
 @cli.command()
@@ -663,7 +665,846 @@ def create_sample():
     with open(sample_path, 'w', encoding='utf-8') as f:
         f.write(content)
     
-    console.print(f"✓ Arquivo criado: [green]{sample_path}[/green]")
+    console.print(f"[OK] Arquivo criado: [green]{sample_path}[/green]")
+
+
+# ============================================
+# COMANDOS DO MÓDULO Q&A
+# ============================================
+
+@cli.command()
+@click.argument('pdf_path', type=click.Path(exists=True), required=False)
+@click.option('-q', '--question', default=None, help='Pergunta unica (modo nao-interativo)')
+@click.option('-i', '--interactive', is_flag=True, help='Modo interativo de perguntas')
+@click.option('-t', '--template', default=None, help='Nome do template a usar')
+@click.option('-o', '--output', default=None, help='Arquivo para exportar conversa')
+@click.option('--save-txt', 'save_txt', default=None, help='Salva resposta em arquivo TXT')
+@click.option('--model', default=None, help='Modelo de linguagem (tinyllama, phi3-mini, gpt2-portuguese)')
+@click.option('--no-cache', is_flag=True, help='Desabilita cache de respostas')
+@click.option('--no-ocr-cache', is_flag=True, help='Desabilita cache de OCR')
+@click.option('--list-templates', is_flag=True, help='Lista templates disponiveis e sai')
+def qa(
+    pdf_path: Optional[str],
+    question: Optional[str],
+    interactive: bool,
+    template: Optional[str],
+    output: Optional[str],
+    save_txt: Optional[str],
+    model: Optional[str],
+    no_cache: bool,
+    no_ocr_cache: bool,
+    list_templates: bool
+):
+    """
+    Sistema de Perguntas e Respostas sobre documentos.
+    
+    Permite fazer perguntas em linguagem natural sobre o conteudo
+    de um documento PDF e receber respostas baseadas no contexto.
+    
+    \b
+    MODOS DE USO:
+    
+    \b
+      Pergunta unica:
+        python run.py qa documento.pdf -q "Qual e a licenca mais critica?"
+    
+    \b
+      Modo interativo:
+        python run.py qa documento.pdf -i
+    
+    \b
+      Com template especifico:
+        python run.py qa documento.pdf -q "pergunta" --template licencas_software
+    
+    \b
+      Salvar resposta em TXT:
+        python run.py qa documento.pdf -q "pergunta" --save-txt resposta.txt
+    
+    \b
+      Usar modelo especifico:
+        python run.py qa documento.pdf -q "pergunta" --model tinyllama
+    
+    \b
+    TEMPLATES DISPONIVEIS:
+    
+    \b
+      sistema_padrao      - Template generico (padrao)
+      licencas_software   - Para documentos de licencas open source
+      contratos           - Para contratos e documentos juridicos
+      atas_reuniao        - Para atas de reuniao
+      inventario          - Para escrituras de inventario
+      geral               - Template minimo
+    
+    \b
+    MODELOS DISPONIVEIS:
+    
+    \b
+      tinyllama           - TinyLlama 1.1B (padrao, recomendado)
+      phi3-mini           - Phi-3 Mini (melhor qualidade)
+      gpt2-portuguese     - GPT-2 Portuguese (fallback)
+    
+    \b
+    EXEMPLOS:
+    
+    \b
+      python run.py qa analise.pdf -i --template licencas_software
+      python run.py qa contrato.pdf -q "Qual o valor?" --save-txt resposta.txt
+      python run.py qa documento.pdf -q "pergunta" --model tinyllama
+      python run.py qa --list-templates
+    """
+    from qa import QAEngine, QAConfig
+    
+    # Lista templates se solicitado
+    if list_templates:
+        _list_qa_templates()
+        return
+    
+    # Valida se PDF foi fornecido
+    if not pdf_path:
+        printer.print_error("E necessario fornecer um arquivo PDF.")
+        console.print("Exemplo: python run.py qa documento.pdf -q \"sua pergunta\"")
+        console.print("\nPara listar templates disponiveis:")
+        console.print("  python run.py qa --list-templates")
+        return
+    
+    # Valida argumentos
+    if not question and not interactive:
+        printer.print_warning("Use -q para pergunta unica ou -i para modo interativo.")
+        console.print("Exemplo: python run.py qa documento.pdf -q \"Sua pergunta aqui\"")
+        console.print("         python run.py qa documento.pdf -i")
+        return
+    
+    # Banner
+    printer.print_banner("DOCUMENT ANALYZER", "Sistema Q&A")
+    
+    pdf_path = Path(pdf_path)
+    
+    # Configura Q&A
+    config = QAConfig()
+    config.use_cache = not no_cache
+    
+    if template:
+        config.default_template = template
+    
+    # Configura modelo se especificado
+    if model:
+        config.generation_model = model
+        console.print(f"[info]Modelo selecionado: {model}[/info]")
+    
+    # Inicializa engine
+    qa_engine = QAEngine(config=config)
+    
+    # Callback de progresso
+    def progress_callback(msg: str, pct: float):
+        pass  # Silencioso
+    
+    qa_engine.progress_callback = progress_callback
+    
+    # Verifica cache de OCR
+    from core.ocr_cache import get_ocr_cache
+    ocr_cache = get_ocr_cache()
+    
+    if not no_ocr_cache and ocr_cache.has_cache(pdf_path):
+        console.print("[green][CACHE] Usando texto em cache (OCR)[/green]")
+    else:
+        console.print("[yellow]Carregando documento...[/yellow]")
+    
+    # Carrega documento
+    try:
+        num_chunks = qa_engine.load_document(pdf_path, template=template)
+        printer.print_success(f"Documento indexado: {num_chunks} chunks")
+    except Exception as e:
+        printer.print_error(f"Erro ao carregar documento: {e}")
+        return
+    
+    doc_info = qa_engine.get_document_info()
+    console.print(f"\n[Documento] [bold]{pdf_path.name}[/bold]")
+    console.print(f"[Info] Paginas: {doc_info.get('pages', '?')} | Chunks: {num_chunks}")
+    console.print(f"[Template] {qa_engine._current_template.name if qa_engine._current_template else 'padrao'}")
+    if model:
+        console.print(f"[Modelo] {model}")
+    console.print()
+    
+    if interactive:
+        _run_interactive_qa(qa_engine, output, save_txt)
+    elif question:
+        _run_single_question(qa_engine, question, save_txt)
+
+
+def _list_qa_templates():
+    """Lista templates de Q&A disponíveis."""
+    from qa import TemplateLoader
+    
+    # Banner simples sem caracteres especiais
+    console.print("\n" + "=" * 60)
+    console.print("  DOCUMENT ANALYZER - Q&A TEMPLATES")
+    console.print("=" * 60)
+    
+    loader = TemplateLoader()
+    templates = loader.list_templates()
+    
+    console.print("\n[bold]Templates de Q&A Disponiveis:[/bold]\n")
+    
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Nome", style="cyan")
+    table.add_column("Descrição", style="white")
+    table.add_column("Padrão", style="green")
+    
+    for t in templates:
+        is_default = "[X]" if t.get("is_default") else ""
+        table.add_row(
+            t["name"],
+            t.get("description", "")[:60] + "..." if len(t.get("description", "")) > 60 else t.get("description", ""),
+            is_default
+        )
+    
+    console.print(table)
+    console.print()
+    console.print("[bold]Como usar um template:[/bold]")
+    console.print("  python run.py qa documento.pdf -q \"pergunta\" --template nome_do_template")
+    console.print()
+    console.print("[bold]Como criar templates:[/bold]")
+    console.print("  Veja o arquivo: instructions/qa_templates/_COMO_CRIAR_TEMPLATES.txt")
+    console.print()
+
+
+def _run_single_question(qa_engine, question: str, save_txt: Optional[str] = None):
+    """Executa uma unica pergunta."""
+    console.print(f"[bold]Pergunta:[/bold] {question}\n")
+    console.print("Processando...", style="yellow")
+    
+    try:
+        response = qa_engine.ask(question)
+    except Exception as e:
+        printer.print_error(f"Erro ao processar pergunta: {e}")
+        return
+    
+    # Exibe resposta
+    _print_qa_response(response)
+    
+    # Salva em TXT se solicitado
+    if save_txt:
+        _save_response_to_txt(question, response, save_txt)
+
+
+def _save_response_to_txt(question: str, response, output_path: str):
+    """Salva resposta em arquivo TXT."""
+    try:
+        doc_info = {}
+        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        
+        content = f"""{'=' * 60}
+RESPOSTA Q&A - DOCUMENT ANALYZER
+{'=' * 60}
+
+Data: {timestamp}
+
+{'-' * 60}
+PERGUNTA:
+{'-' * 60}
+{question}
+
+{'-' * 60}
+RESPOSTA:
+{'-' * 60}
+{response.answer}
+
+{'-' * 60}
+METADADOS:
+{'-' * 60}
+Paginas de referencia: {', '.join(map(str, response.pages)) if response.pages else 'N/A'}
+Confianca: {response.confidence:.0%}
+Tempo de processamento: {response.processing_time:.2f}s
+Template usado: {response.template_used}
+Resposta do cache: {'Sim' if response.from_cache else 'Nao'}
+
+{'=' * 60}
+"""
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        printer.print_success(f"Resposta salva em: {output_path}")
+        
+    except Exception as e:
+        printer.print_error(f"Erro ao salvar resposta: {e}")
+
+
+def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optional[str] = None):
+    """Executa modo interativo de Q&A."""
+    all_responses = []  # Para salvar todas as respostas
+    
+    console.print("[bold cyan]Modo Interativo de Q&A[/bold cyan]")
+    console.print("Digite suas perguntas. Comandos especiais:")
+    console.print("  [yellow]/sair[/yellow]      - Encerra a sessao")
+    console.print("  [yellow]/limpar[/yellow]    - Limpa historico da conversa")
+    console.print("  [yellow]/exportar[/yellow]  - Exporta conversa para arquivo")
+    console.print("  [yellow]/template[/yellow]  - Muda o template")
+    console.print("  [yellow]/info[/yellow]      - Mostra informacoes do documento")
+    console.print()
+    
+    while True:
+        try:
+            # Prompt
+            user_input = console.input("[bold green]> [/bold green]").strip()
+            
+            if not user_input:
+                continue
+            
+            # Comandos especiais
+            if user_input.lower() == "/sair":
+                console.print("\n[cyan]Encerrando sessao...[/cyan]")
+                
+                if output_path:
+                    qa_engine.export_conversation(Path(output_path))
+                    printer.print_success(f"Conversa exportada: {output_path}")
+                
+                # Salva em TXT se solicitado
+                if save_txt and all_responses:
+                    _save_session_to_txt(all_responses, save_txt)
+                
+                break
+            
+            elif user_input.lower() == "/limpar":
+                qa_engine.clear_conversation()
+                all_responses.clear()
+                console.print("[yellow]Historico limpo.[/yellow]\n")
+                continue
+            
+            elif user_input.lower() == "/exportar":
+                export_file = f"conversa_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                qa_engine.export_conversation(Path(export_file))
+                printer.print_success(f"Conversa exportada: {export_file}")
+                continue
+            
+            elif user_input.lower().startswith("/template"):
+                parts = user_input.split(maxsplit=1)
+                if len(parts) > 1:
+                    try:
+                        qa_engine.set_template(parts[1])
+                        printer.print_success(f"Template alterado para: {parts[1]}")
+                    except Exception as e:
+                        printer.print_error(str(e))
+                else:
+                    templates = qa_engine.list_templates()
+                    console.print("Templates disponiveis:")
+                    for t in templates:
+                        marker = " (atual)" if t.get("is_default") else ""
+                        console.print(f"  * {t['name']}{marker}")
+                    console.print()
+                continue
+            
+            elif user_input.lower() == "/info":
+                info = qa_engine.get_document_info()
+                console.print(f"Documento: {info.get('name', 'N/A')}")
+                console.print(f"Paginas: {info.get('pages', 'N/A')}")
+                console.print(f"Perguntas nesta sessao: {qa_engine.conversation.turn_count}")
+                console.print()
+                continue
+            
+            elif user_input.startswith("/"):
+                console.print("[yellow]Comando nao reconhecido. Use /sair para encerrar.[/yellow]\n")
+                continue
+            
+            # Processa pergunta
+            console.print("Pensando...", style="dim")
+            
+            try:
+                response = qa_engine.ask(user_input)
+                # Guarda para salvar depois
+                all_responses.append({"question": user_input, "response": response})
+            except Exception as e:
+                printer.print_error(str(e))
+                continue
+            
+            # Exibe resposta
+            _print_qa_response(response, compact=True)
+            console.print()
+            
+        except KeyboardInterrupt:
+            console.print("\n[cyan]Sessao interrompida.[/cyan]")
+            # Salva em TXT se solicitado
+            if save_txt and all_responses:
+                _save_session_to_txt(all_responses, save_txt)
+            break
+        except EOFError:
+            break
+
+
+def _save_session_to_txt(responses: list, output_path: str):
+    """Salva sessao interativa completa em arquivo TXT."""
+    try:
+        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        
+        content = f"""{'=' * 60}
+SESSAO Q&A - DOCUMENT ANALYZER
+{'=' * 60}
+
+Data: {timestamp}
+Total de perguntas: {len(responses)}
+
+"""
+        
+        for i, item in enumerate(responses, 1):
+            question = item["question"]
+            response = item["response"]
+            
+            content += f"""{'-' * 60}
+PERGUNTA {i}:
+{'-' * 60}
+{question}
+
+RESPOSTA:
+{response.answer}
+
+Paginas: {', '.join(map(str, response.pages)) if response.pages else 'N/A'}
+Confianca: {response.confidence:.0%}
+
+"""
+        
+        content += f"{'=' * 60}\n"
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        printer.print_success(f"Sessao salva em: {output_path}")
+        
+    except Exception as e:
+        printer.print_error(f"Erro ao salvar sessao: {e}")
+
+
+def _print_qa_response(response, compact: bool = False):
+    """Exibe resposta do Q&A formatada."""
+    from rich.panel import Panel
+    
+    # Determina estilo baseado na confianca
+    if response.confidence >= 0.7:
+        style = "green"
+        confidence_label = "Alta"
+    elif response.confidence >= 0.4:
+        style = "yellow"
+        confidence_label = "Media"
+    else:
+        style = "red"
+        confidence_label = "Baixa"
+    
+    # Formata resposta
+    answer_text = response.answer
+    
+    # Adiciona metadados
+    if not compact:
+        footer = []
+        if response.pages:
+            footer.append(f"Paginas: {', '.join(map(str, response.pages))}")
+        footer.append(f"Confianca: {response.confidence:.0%} ({confidence_label})")
+        footer.append(f"Tempo: {response.processing_time:.2f}s")
+        if response.from_cache:
+            footer.append("(Cache)")
+        
+        answer_text += "\n\n" + " | ".join(footer)
+    else:
+        if response.pages:
+            answer_text += f"\n\n[dim]Paginas: {', '.join(map(str, response.pages))} | Confianca: {response.confidence:.0%}[/dim]"
+    
+    console.print(Panel(
+        answer_text,
+        title="[bold]Resposta[/bold]" if not compact else None,
+        border_style=style,
+        padding=(1, 2)
+    ))
+
+
+@cli.command(name="qa-cache")
+@click.option('--stats', is_flag=True, help='Mostra estatísticas do cache')
+@click.option('--clear', is_flag=True, help='Limpa o cache')
+@click.option('--frequent', is_flag=True, help='Mostra perguntas frequentes')
+def qa_cache(stats: bool, clear: bool, frequent: bool):
+    """
+    Gerencia o cache do sistema Q&A.
+    
+    \b
+    Exemplos:
+      python run.py qa-cache --stats
+      python run.py qa-cache --clear
+      python run.py qa-cache --frequent
+    """
+    from qa import ResponseCache
+    
+    cache = ResponseCache()
+    
+    if clear:
+        count = cache.clear()
+        console.print(f"[green]Cache limpo: {count} entradas removidas[/green]")
+        return
+    
+    if frequent:
+        questions = cache.get_frequent_questions(10)
+        if not questions:
+            console.print("[yellow]Nenhuma pergunta no cache.[/yellow]")
+            return
+        
+        console.print("\n[bold]Perguntas Mais Frequentes:[/bold]\n")
+        table = Table(show_header=True)
+        table.add_column("#", style="cyan")
+        table.add_column("Pergunta")
+        table.add_column("Acessos", style="green")
+        
+        for i, q in enumerate(questions, 1):
+            table.add_row(
+                str(i),
+                q["question"][:60] + "..." if len(q["question"]) > 60 else q["question"],
+                str(q["access_count"])
+            )
+        
+        console.print(table)
+        return
+    
+    # Stats (padrão)
+    cache_stats = cache.get_stats()
+    
+    console.print("\n[bold]Estatísticas do Cache Q&A:[/bold]\n")
+    table = Table(show_header=True)
+    table.add_column("Métrica", style="cyan")
+    table.add_column("Valor", style="green")
+    
+    table.add_row("Entradas", str(cache_stats.get("entries", 0)))
+    table.add_row("Máximo", str(cache_stats.get("max_size", 0)))
+    table.add_row("TTL (horas)", str(cache_stats.get("ttl_hours", 0)))
+    table.add_row("Total de Acessos", str(cache_stats.get("total_accesses", 0)))
+    table.add_row("Confiança Média", f"{cache_stats.get('avg_confidence', 0):.0%}")
+    table.add_row("Persistência", "Sim" if cache_stats.get("persist_enabled") else "Não")
+    
+    console.print(table)
+    console.print()
+
+
+# ============================================
+# COMANDOS DE CACHE OCR
+# ============================================
+
+@cli.command(name="ocr-cache")
+@click.option('--list', 'list_cache', is_flag=True, help='Lista documentos em cache')
+@click.option('--stats', is_flag=True, help='Mostra estatisticas do cache')
+@click.option('--clear', is_flag=True, help='Limpa todo o cache')
+@click.option('--remove', 'remove_file', default=None, help='Remove documento especifico do cache')
+@click.option('--info', 'info_file', default=None, help='Mostra info de documento especifico')
+@click.option('--cleanup', is_flag=True, help='Remove entradas expiradas')
+def ocr_cache(
+    list_cache: bool,
+    stats: bool,
+    clear: bool,
+    remove_file: Optional[str],
+    info_file: Optional[str],
+    cleanup: bool
+):
+    """
+    Gerencia o cache de extracoes OCR.
+    
+    O cache armazena o texto extraido de PDFs para evitar
+    reprocessamento custoso do OCR.
+    
+    \b
+    Exemplos:
+      python run.py ocr-cache --list
+      python run.py ocr-cache --stats
+      python run.py ocr-cache --clear
+      python run.py ocr-cache --remove documento.pdf
+      python run.py ocr-cache --info documento.pdf
+      python run.py ocr-cache --cleanup
+    """
+    from core.ocr_cache import get_ocr_cache
+    from rich.table import Table
+    
+    cache = get_ocr_cache()
+    
+    printer.print_banner("DOCUMENT ANALYZER", "Cache OCR")
+    
+    if clear:
+        count = cache.clear()
+        printer.print_success(f"Cache limpo: {count} entradas removidas")
+        return
+    
+    if cleanup:
+        count = cache.cleanup_expired()
+        printer.print_success(f"Limpeza: {count} entradas expiradas removidas")
+        return
+    
+    if remove_file:
+        count = cache.remove_by_name(remove_file)
+        if count > 0:
+            printer.print_success(f"Removido: {count} entrada(s) para '{remove_file}'")
+        else:
+            printer.print_warning(f"Nenhuma entrada encontrada para '{remove_file}'")
+        return
+    
+    if info_file:
+        entry = cache.get_entry_info(info_file)
+        if entry:
+            console.print(f"\n[bold]Informacoes do Cache:[/bold]\n")
+            table = Table(show_header=False, safe_box=True)
+            table.add_column("Campo", style="cyan")
+            table.add_column("Valor", style="green")
+            
+            table.add_row("Arquivo", entry.file_name)
+            table.add_row("Hash", entry.file_hash[:16] + "...")
+            table.add_row("Paginas", str(entry.num_pages))
+            table.add_row("Palavras", f"{entry.total_words:,}")
+            table.add_row("Tamanho Original", f"{entry.file_size / 1024 / 1024:.2f} MB")
+            table.add_row("Extraido em", entry.extracted_at[:19])
+            table.add_row("Tempo de Extracao", f"{entry.extraction_time_seconds:.1f}s")
+            table.add_row("Idade", f"{entry.age_hours:.1f} horas")
+            
+            console.print(table)
+        else:
+            printer.print_warning(f"Documento '{info_file}' nao encontrado no cache")
+        return
+    
+    if list_cache:
+        entries = cache.list_entries()
+        
+        if not entries:
+            printer.print_warning("Nenhum documento no cache OCR.")
+            return
+        
+        console.print(f"\n[bold]Documentos em Cache: {len(entries)}[/bold]\n")
+        
+        table = Table(show_header=True, safe_box=True)
+        table.add_column("#", style="cyan", width=4)
+        table.add_column("Arquivo", style="green")
+        table.add_column("Pags", style="yellow", width=6)
+        table.add_column("Palavras", style="white", width=10)
+        table.add_column("Tempo OCR", style="magenta", width=10)
+        table.add_column("Idade", style="dim", width=10)
+        
+        for i, entry in enumerate(entries, 1):
+            age_str = f"{entry.age_hours:.0f}h" if entry.age_hours < 48 else f"{entry.age_hours/24:.0f}d"
+            table.add_row(
+                str(i),
+                entry.file_name[:40] + "..." if len(entry.file_name) > 40 else entry.file_name,
+                str(entry.num_pages),
+                f"{entry.total_words:,}",
+                f"{entry.extraction_time_seconds:.1f}s",
+                age_str
+            )
+        
+        console.print(table)
+        console.print()
+        return
+    
+    # Stats (padrao)
+    cache_stats = cache.get_stats()
+    
+    console.print("\n[bold]Estatisticas do Cache OCR:[/bold]\n")
+    
+    table = Table(show_header=False, safe_box=True)
+    table.add_column("Metrica", style="cyan")
+    table.add_column("Valor", style="green")
+    
+    table.add_row("Status", "Habilitado" if cache_stats.get("enabled") else "Desabilitado")
+    table.add_row("Documentos em Cache", str(cache_stats.get("total_entries", 0)))
+    table.add_row("Total de Paginas", str(cache_stats.get("total_pages", 0)))
+    table.add_row("Total de Palavras", f"{cache_stats.get('total_words', 0):,}")
+    table.add_row("Tamanho Original", f"{cache_stats.get('total_original_size_mb', 0):.2f} MB")
+    table.add_row("Tamanho do Cache", f"{cache_stats.get('total_cache_size_mb', 0):.2f} MB")
+    table.add_row("Tempo Total Salvo", f"{cache_stats.get('total_time_saved_seconds', 0):.1f}s")
+    table.add_row("Validade Maxima", f"{cache_stats.get('max_age_hours', 0)} horas")
+    table.add_row("Diretorio", cache_stats.get("cache_dir", "N/A"))
+    
+    console.print(table)
+    console.print()
+
+
+# ============================================
+# COMANDOS DE MODELOS
+# ============================================
+
+@cli.command(name="models")
+@click.option('--list', 'list_models', is_flag=True, help='Lista modelos disponiveis')
+@click.option('--info', 'model_name', default=None, help='Mostra info de modelo especifico')
+@click.option('--check', is_flag=True, help='Verifica quais modelos estao instalados')
+def models_cmd(list_models: bool, model_name: Optional[str], check: bool):
+    """
+    Gerencia modelos de linguagem para geracao de respostas.
+    
+    O sistema suporta:
+    - Modelos HuggingFace (GPT-2 Portuguese)
+    - Modelos GGUF quantizados (TinyLlama, Phi-3, Mistral)
+    
+    \b
+    Exemplos:
+      python run.py models --list
+      python run.py models --info tinyllama
+      python run.py models --check
+    """
+    from rich.table import Table
+    
+    printer.print_banner("DOCUMENT ANALYZER", "Gerenciador de Modelos")
+    
+    # Modelos disponiveis
+    all_models = [
+        {
+            "id": "gpt2-portuguese",
+            "name": "GPT-2 Small Portuguese",
+            "type": "huggingface",
+            "size": "~500 MB",
+            "ram": "~2 GB",
+            "quality": "Basico",
+            "path": "./models/generator/models--pierreguillou--gpt2-small-portuguese",
+            "description": "Modelo leve, qualidade limitada para Q&A"
+        },
+        {
+            "id": "tinyllama",
+            "name": "TinyLlama-1.1B-Chat",
+            "type": "gguf",
+            "size": "~670 MB",
+            "ram": "~2 GB",
+            "quality": "Bom",
+            "path": "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+            "description": "Equilibrio entre tamanho e qualidade (RECOMENDADO)",
+            "default": True
+        },
+        {
+            "id": "phi3-mini",
+            "name": "Phi-3-Mini-4K-Instruct",
+            "type": "gguf",
+            "size": "~2.3 GB",
+            "ram": "~6 GB",
+            "quality": "Excelente",
+            "path": "./models/generator/Phi-3-mini-4k-instruct-q4.gguf",
+            "description": "Alta qualidade, requer mais recursos"
+        },
+        {
+            "id": "mistral-7b",
+            "name": "Mistral-7B-Instruct",
+            "type": "gguf",
+            "size": "~4 GB",
+            "ram": "~8 GB",
+            "quality": "Excelente",
+            "path": "./models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
+            "description": "Melhor qualidade, requer hardware potente"
+        },
+    ]
+    
+    if model_name:
+        # Info de modelo especifico
+        model = next((m for m in all_models if m["id"] == model_name), None)
+        
+        if not model:
+            printer.print_error(f"Modelo '{model_name}' nao encontrado")
+            console.print("\nModelos disponiveis:")
+            for m in all_models:
+                console.print(f"  - {m['id']}")
+            return
+        
+        model_path = Path(model["path"])
+        exists = model_path.exists()
+        
+        console.print(f"\n[bold]Modelo: {model['name']}[/bold]\n")
+        
+        table = Table(show_header=False, safe_box=True)
+        table.add_column("Campo", style="cyan")
+        table.add_column("Valor", style="green")
+        
+        table.add_row("ID", model["id"])
+        table.add_row("Tipo", model["type"].upper())
+        table.add_row("Tamanho", model["size"])
+        table.add_row("RAM Necessaria", model["ram"])
+        table.add_row("Qualidade", model["quality"])
+        table.add_row("Descricao", model["description"])
+        table.add_row("Caminho", model["path"])
+        table.add_row("Instalado", "[green]SIM[/green]" if exists else "[red]NAO[/red]")
+        if model.get("default"):
+            table.add_row("Padrao", "[yellow]SIM[/yellow]")
+        
+        console.print(table)
+        
+        if not exists:
+            console.print("\n[yellow]Para instalar este modelo:[/yellow]")
+            console.print(f"  Veja: docs/MODELOS_OFFLINE.md")
+        
+        return
+    
+    if check:
+        from rag.smart_generator import (
+            check_llama_cpp_available,
+            list_available_models as list_smart_models,
+            get_best_available_model
+        )
+        
+        # Verifica modelos instalados
+        console.print("\n[bold]Verificando dependencias...[/bold]\n")
+        
+        # Verifica llama-cpp-python (necessario para GGUF)
+        llama_cpp_installed = check_llama_cpp_available()
+        if llama_cpp_installed:
+            console.print("  [green][OK][/green] llama-cpp-python")
+        else:
+            console.print("  [red][X][/red] llama-cpp-python (necessario para TinyLlama)")
+            console.print("        [dim]Execute: .\\scripts\\install_llama_cpp.ps1[/dim]")
+        
+        console.print("\n[bold]Verificando modelos...[/bold]\n")
+        
+        models = list_smart_models()
+        available_count = 0
+        
+        for model in models:
+            if model["available"]:
+                console.print(f"  [green][OK][/green] {model['name']}")
+                available_count += 1
+            else:
+                reason = f" ({model['reason']})" if model['reason'] else ""
+                console.print(f"  [red][X][/red] {model['name']}{reason}")
+        
+        console.print(f"\n[bold]Modelos disponiveis: {available_count}/{len(models)}[/bold]")
+        
+        # Mostra qual modelo sera usado
+        best_id, best_config = get_best_available_model()
+        console.print(f"\n[bold cyan]Modelo que sera usado: {best_config['name']}[/bold cyan]")
+        
+        if best_id == "gpt2-portuguese" and not llama_cpp_installed:
+            console.print("\n[yellow]Para usar TinyLlama (melhor qualidade):[/yellow]")
+            console.print("  1. Execute: .\\scripts\\install_llama_cpp.ps1")
+            console.print("  2. Ou: pip install llama-cpp-python")
+            console.print("\n  O modelo TinyLlama ja esta baixado!")
+        
+        return
+    
+    # Lista modelos (padrao)
+    console.print("\n[bold]Modelos de Linguagem Disponiveis:[/bold]\n")
+    
+    table = Table(show_header=True, safe_box=True)
+    table.add_column("ID", style="cyan")
+    table.add_column("Nome", style="green")
+    table.add_column("Tipo", style="yellow")
+    table.add_column("Tamanho", style="white")
+    table.add_column("Qualidade", style="magenta")
+    table.add_column("Status", style="white")
+    
+    for model in all_models:
+        model_path = Path(model["path"])
+        exists = model_path.exists()
+        
+        status = "[OK]" if exists else "[X]"
+        if model.get("default"):
+            status += " (Padrao)"
+        
+        table.add_row(
+            model["id"],
+            model["name"],
+            model["type"].upper(),
+            model["size"],
+            model["quality"],
+            status
+        )
+    
+    console.print(table)
+    console.print()
+    console.print("[bold]Como usar um modelo especifico:[/bold]")
+    console.print("  Configure no config.yaml ou use --model no comando qa")
+    console.print()
+    console.print("[bold]Para instalar modelos:[/bold]")
+    console.print("  Veja: docs/MODELOS_OFFLINE.md")
+    console.print()
 
 
 def main():
@@ -671,8 +1512,11 @@ def main():
     try:
         cli()
     except Exception as e:
-        console.print(f"\n[red]Erro: {e}[/red]")
-        logger.exception("Erro na execução")
+        try:
+            printer.print_error(str(e))
+        except Exception:
+            print(f"ERRO: {e}")
+        logger.exception("Erro na execucao")
         sys.exit(1)
 
 

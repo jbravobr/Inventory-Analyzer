@@ -1,0 +1,206 @@
+# ============================================
+#      GUIA: COMO CRIAR TEMPLATES DE Q&A
+# ============================================
+#
+# Este guia explica como criar ou modificar templates
+# para personalizar as respostas do sistema de Q&A.
+#
+# ============================================
+
+================================================================================
+                              INTRODUÇÃO
+================================================================================
+
+Templates são arquivos de texto (.txt) que definem como o sistema deve
+responder às perguntas dos usuários. Você pode criar templates específicos
+para diferentes tipos de documentos.
+
+Os templates ficam nesta pasta: instructions/qa_templates/
+
+Cada arquivo .txt nesta pasta (exceto os que começam com _) será 
+automaticamente reconhecido como um template disponível.
+
+
+================================================================================
+                         ESTRUTURA DO ARQUIVO
+================================================================================
+
+Todo template deve ter 3 seções principais, identificadas por marcadores
+entre colchetes:
+
+1. [INSTRUCAO_SISTEMA]
+   Define o "papel" do assistente e regras gerais.
+   Exemplo: "Você é um especialista em contratos..."
+   
+2. [INSTRUCAO_USUARIO]
+   Define como a pergunta e o contexto serão apresentados.
+   USE as variáveis disponíveis (veja abaixo).
+   
+3. [FORMATO_RESPOSTA]
+   Define como a resposta deve ser estruturada.
+   Esta seção é OPCIONAL.
+
+
+================================================================================
+                         VARIÁVEIS DISPONÍVEIS
+================================================================================
+
+Use estas variáveis entre chaves {} no seu template. Elas serão 
+automaticamente substituídas pelos valores reais:
+
+  {contexto}   - Trecho relevante encontrado no documento
+                 (preenchido automaticamente pelo sistema)
+
+  {pergunta}   - A pergunta feita pelo usuário
+                 (preenchido automaticamente)
+
+  {documento}  - Nome do arquivo PDF sendo analisado
+                 Exemplo: "contrato_locacao.pdf"
+
+  {paginas}    - Números das páginas onde o contexto foi encontrado
+                 Exemplo: "2, 3, 5"
+
+  {data}       - Data atual no formato DD/MM/AAAA
+                 Exemplo: "16/12/2024"
+
+  {hora}       - Hora atual no formato HH:MM
+                 Exemplo: "14:30"
+
+
+================================================================================
+                          EXEMPLO SIMPLES
+================================================================================
+
+Crie um arquivo chamado "meu_template.txt" com o seguinte conteúdo:
+
+--------------------------------------------------------------------------------
+# Template simples para qualquer documento
+# Criado em: 16/12/2024
+
+[INSTRUCAO_SISTEMA]
+Você é um assistente que responde perguntas sobre documentos.
+Responda sempre em português, de forma clara e objetiva.
+Se a informação não estiver no contexto, diga claramente.
+
+[INSTRUCAO_USUARIO]
+Documento analisado: {documento}
+
+Contexto encontrado (páginas {paginas}):
+---
+{contexto}
+---
+
+Pergunta do usuário: {pergunta}
+
+Por favor, responda baseado apenas no contexto acima.
+
+[FORMATO_RESPOSTA]
+Estruture sua resposta assim:
+- Resposta direta à pergunta
+- Citação do trecho relevante (se aplicável)
+- Página de referência
+--------------------------------------------------------------------------------
+
+
+================================================================================
+                            COMO USAR
+================================================================================
+
+Após criar seu template, use-o com o comando:
+
+  python run.py qa documento.pdf -q "sua pergunta" --template meu_template
+
+O sistema irá procurar o arquivo em:
+  instructions/qa_templates/meu_template.txt
+
+Para usar no modo interativo:
+  python run.py qa documento.pdf -i --template meu_template
+
+
+================================================================================
+                         DICAS IMPORTANTES
+================================================================================
+
+1. SEJA ESPECÍFICO NA INSTRUÇÃO DE SISTEMA
+   Quanto mais específico sobre o tipo de documento, melhores as respostas.
+   Exemplo: "Você é um especialista em licenças de software open source..."
+
+2. SEMPRE INCLUA {contexto} E {pergunta}
+   Na seção [INSTRUCAO_USUARIO], essas variáveis são obrigatórias.
+
+3. PEÇA CITAÇÕES DE PÁGINA
+   Isso ajuda a rastrear a fonte da informação.
+
+4. DEFINA REGRAS CLARAS
+   Liste o que o assistente deve e não deve fazer.
+
+5. TESTE COM VÁRIAS PERGUNTAS
+   Teste seu template com diferentes tipos de perguntas.
+
+6. COMENTÁRIOS
+   Linhas começando com # são comentários e são ignoradas.
+
+
+================================================================================
+                       TEMPLATES INCLUÍDOS
+================================================================================
+
+O sistema já vem com estes templates prontos para uso:
+
+  sistema_padrao.txt      - Template genérico para qualquer documento
+                            (usado por padrão)
+
+  licencas_software.txt   - Para documentos de licenças open source
+                            (GPL, MIT, Apache, etc.)
+
+  contratos.txt           - Para contratos e documentos jurídicos
+
+  atas_reuniao.txt        - Para atas de reunião de quotistas/acionistas
+
+  inventario.txt          - Para escrituras de inventário
+
+  geral.txt               - Template mínimo e simples
+
+
+================================================================================
+                     SOLUÇÃO DE PROBLEMAS
+================================================================================
+
+Se o template não funcionar, verifique:
+
+1. O arquivo está na pasta instructions/qa_templates/ ?
+
+2. O nome do arquivo termina com .txt ?
+
+3. As seções [INSTRUCAO_SISTEMA] e [INSTRUCAO_USUARIO] existem?
+
+4. As variáveis estão escritas corretamente?
+   CORRETO: {contexto}
+   ERRADO:  {Contexto} ou { contexto } ou {{contexto}}
+
+5. Não há caracteres especiais estranhos no arquivo?
+
+6. O arquivo está salvo com codificação UTF-8?
+
+Em caso de dúvida, copie um template existente e modifique.
+
+
+================================================================================
+                         EXEMPLO AVANÇADO
+================================================================================
+
+Veja o arquivo "licencas_software.txt" como exemplo de um template
+mais elaborado, com regras específicas para um tipo de documento.
+
+
+================================================================================
+                           SUPORTE
+================================================================================
+
+Se precisar de ajuda:
+1. Consulte os templates existentes como exemplo
+2. Teste com perguntas simples primeiro
+3. Verifique os logs do sistema para mensagens de erro
+
+================================================================================
+

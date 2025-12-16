@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
 from core.pdf_reader import PDFReader
+from core.ocr_extractor import OCRExtractor
 from .meeting_minutes_analyzer import MeetingMinutesResult
 
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ class MeetingMinutesPDFHighlighter:
     
     def __init__(self):
         self.reader = PDFReader()
+        self.ocr = OCRExtractor()
         self._images: List[Image.Image] = []
     
     def generate_highlighted_pdf(
@@ -99,6 +101,10 @@ class MeetingMinutesPDFHighlighter:
         
         # Lê o documento
         document = self.reader.read(pdf_path)
+        
+        # Executa OCR para extrair texto das páginas
+        logger.info("Executando OCR para extração de texto...")
+        self.ocr.extract(document)
         
         # Processa cada página
         highlighted_images = []
@@ -484,6 +490,10 @@ class MeetingMinutesPDFHighlighter:
         
         # Lê o documento
         document = self.reader.read(pdf_path)
+        
+        # Executa OCR para extrair texto das páginas
+        logger.info("Executando OCR para extração de texto...")
+        self.ocr.extract(document)
         
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)

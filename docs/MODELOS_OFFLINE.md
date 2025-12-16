@@ -1,0 +1,344 @@
+# Modelos de Linguagem Offline
+
+Este documento explica como configurar e utilizar diferentes modelos de linguagem no Document Analyzer.
+
+---
+
+## Status Atual do Repositorio
+
+| Componente | Status | Acao Necessaria |
+|------------|--------|-----------------|
+| GPT-2 Portuguese | JA INCLUSO | Nenhuma |
+| TinyLlama GGUF | JA INCLUSO | Nenhuma (modelo de ~670 MB incluso) |
+| llama-cpp-python | **REQUER INSTALACAO** | Executar script de instalacao |
+
+**O modelo TinyLlama ja esta no repositorio!**
+**Para usa-lo, basta instalar o llama-cpp-python.**
+
+---
+
+## Ativar TinyLlama (Recomendado)
+
+O modelo TinyLlama ja esta baixado. Para ativa-lo, execute:
+
+**PowerShell:**
+```powershell
+.\scripts\install_llama_cpp.ps1
+```
+
+**Prompt de Comando (CMD):**
+```cmd
+scripts\install_llama_cpp.cmd
+```
+
+**Ou manualmente:**
+```bash
+pip install llama-cpp-python
+```
+
+**Nota:** Requer compilador C++ (Visual Studio Build Tools).
+Se a instalacao falhar, o sistema usa GPT-2 Portuguese automaticamente.
+
+### Verificar Status
+
+```powershell
+python run.py models --check
+```
+
+---
+
+## Visao Geral
+
+O sistema suporta dois tipos de modelos:
+
+| Tipo | Formato | Vantagens | Desvantagens |
+|------|---------|-----------|--------------|
+| **HuggingFace** | PyTorch (.bin) | Ja incluso | Menor qualidade |
+| **GGUF** | Quantizado (.gguf) | Melhor qualidade | Requer download manual |
+
+---
+
+## Download Rapido (TinyLlama)
+
+### Passo 1: Baixar o Modelo (~670 MB)
+
+**Windows PowerShell:**
+```powershell
+cd D:\sources\RAG\inventory_analyzer_offline
+Invoke-WebRequest -Uri "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf" -OutFile "models\generator\tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+```
+
+**Linux/Mac:**
+```bash
+wget -P models/generator/ "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+```
+
+**Ou download manual:**
+1. Acesse: https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/tree/main
+2. Baixe: `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`
+3. Coloque em: `models/generator/`
+
+### Passo 2: Instalar llama-cpp-python
+
+**Com internet:**
+```bash
+pip install llama-cpp-python
+```
+
+**Offline (baixar wheel primeiro):**
+1. Acesse: https://github.com/abetlen/llama-cpp-python/releases
+2. Baixe wheel para Windows: `llama_cpp_python-*-cp311-cp311-win_amd64.whl`
+3. Coloque em `wheels/`
+4. Instale: `pip install wheels/llama_cpp_python-*.whl`
+
+### Passo 3: Verificar
+
+```bash
+python run.py models --check
+```
+
+---
+
+## Modelos Disponiveis
+
+### 1. TinyLlama-1.1B (RECOMENDADO)
+
+**O modelo padrao para uso offline.**
+
+| Caracteristica | Valor |
+|----------------|-------|
+| Tamanho | ~670 MB |
+| RAM Necessaria | ~2 GB |
+| Qualidade Q&A | Boa |
+| Velocidade CPU | Rapido |
+
+**Download:**
+- HuggingFace: [TinyLlama-1.1B-Chat-GGUF](https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF)
+- Arquivo: `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`
+
+**Instalacao:**
+```bash
+# Baixe o arquivo e coloque em:
+models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
+```
+
+---
+
+### 2. Phi-3 Mini (Alta Qualidade)
+
+**Para quem precisa de respostas mais elaboradas.**
+
+| Caracteristica | Valor |
+|----------------|-------|
+| Tamanho | ~2.3 GB |
+| RAM Necessaria | ~6 GB |
+| Qualidade Q&A | Excelente |
+| Velocidade CPU | Media |
+
+**Download:**
+- HuggingFace: [Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf)
+- Arquivo: `Phi-3-mini-4k-instruct-q4.gguf`
+
+**Instalacao:**
+```bash
+# Baixe o arquivo e coloque em:
+models/generator/Phi-3-mini-4k-instruct-q4.gguf
+```
+
+---
+
+### 3. Mistral-7B (Melhor Qualidade)
+
+**Para hardware mais potente.**
+
+| Caracteristica | Valor |
+|----------------|-------|
+| Tamanho | ~4 GB |
+| RAM Necessaria | ~8 GB |
+| Qualidade Q&A | Excelente |
+| Velocidade CPU | Lento |
+
+**Download:**
+- HuggingFace: [Mistral-7B-Instruct-GGUF](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF)
+- Arquivo: `mistral-7b-instruct-v0.2.Q4_K_M.gguf`
+
+**Instalacao:**
+```bash
+# Baixe o arquivo e coloque em:
+models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+```
+
+---
+
+### 4. GPT-2 Portuguese (Fallback)
+
+**Modelo mais simples, sempre disponivel.**
+
+| Caracteristica | Valor |
+|----------------|-------|
+| Tamanho | ~500 MB |
+| RAM Necessaria | ~2 GB |
+| Qualidade Q&A | Basica |
+| Velocidade CPU | Rapido |
+
+Este modelo ja vem pre-instalado no pacote.
+
+---
+
+## Instalacao do llama-cpp-python
+
+Para usar modelos GGUF (TinyLlama, Phi-3, Mistral), voce precisa instalar o `llama-cpp-python`:
+
+### Windows (Sem GPU)
+
+```bash
+pip install llama-cpp-python
+```
+
+### Windows (Com GPU NVIDIA)
+
+```bash
+# Requer CUDA instalado
+pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+```
+
+### Instalacao Offline
+
+Se voce esta em ambiente corporativo sem internet:
+
+1. Baixe o wheel apropriado de: https://github.com/abetlen/llama-cpp-python/releases
+2. Coloque na pasta `wheels/`
+3. Execute:
+   ```bash
+   pip install wheels/llama_cpp_python-*.whl
+   ```
+
+---
+
+## Configuracao
+
+### Via config.yaml
+
+```yaml
+rag:
+  generation:
+    default_model: "tinyllama"  # Modelo padrao
+```
+
+### Via CLI
+
+```bash
+# Usar modelo especifico
+python run.py qa documento.pdf -q "pergunta" --model tinyllama
+
+# Listar modelos
+python run.py models --list
+
+# Verificar modelos instalados
+python run.py models --check
+```
+
+---
+
+## Comparativo de Qualidade
+
+### Pergunta de Teste
+"Quais licencas sao de alta criticidade?"
+
+**GPT-2 Portuguese:**
+```
+(Resposta vazia ou parcial)
+```
+
+**TinyLlama:**
+```
+As licencas de alta criticidade mencionadas no documento sao:
+- GPL-3.0
+- AGPL-3.0
+
+Estas licencas exigem que codigo derivado seja disponibilizado
+sob a mesma licenca, o que pode impactar software proprietario.
+```
+
+**Phi-3 Mini:**
+```
+Com base no documento analisado, as seguintes licencas sao 
+classificadas como de ALTA criticidade:
+
+1. GPL-3.0 (GNU General Public License v3.0)
+   - Motivo: Obriga distribuicao do codigo-fonte
+   
+2. AGPL-3.0 (GNU Affero General Public License v3.0)
+   - Motivo: Alem da GPL, inclui uso via rede
+
+Recomendacao: Evitar uso direto em produtos comerciais sem 
+consulta juridica.
+```
+
+---
+
+## Recomendacoes por Caso de Uso
+
+| Caso de Uso | Modelo Recomendado | Motivo |
+|-------------|-------------------|--------|
+| Desktop comum | TinyLlama | Equilibrio |
+| Laptop basico | GPT-2 Portuguese | Menor consumo |
+| Servidor | Phi-3 Mini ou Mistral | Melhor qualidade |
+| Respostas rapidas | TinyLlama | Velocidade |
+| Analises detalhadas | Phi-3 Mini | Qualidade |
+
+---
+
+## Estrutura de Pastas
+
+```
+models/
+├── embeddings/
+│   └── models--neuralmind--bert-base-portuguese-cased/
+│       └── ...
+└── generator/
+    ├── tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf     # GGUF
+    ├── Phi-3-mini-4k-instruct-q4.gguf            # GGUF
+    ├── mistral-7b-instruct-v0.2.Q4_K_M.gguf     # GGUF
+    └── models--pierreguillou--gpt2-small-portuguese/
+        └── ...                                    # HuggingFace
+```
+
+---
+
+## Solucao de Problemas
+
+### "Modelo GGUF nao encontrado"
+
+1. Verifique se o arquivo `.gguf` esta na pasta correta
+2. Verifique o nome do arquivo no config.yaml
+3. Execute `python run.py models --check`
+
+### "llama-cpp-python nao instalado"
+
+1. Instale: `pip install llama-cpp-python`
+2. Ou baixe o wheel e instale offline
+
+### "Memoria insuficiente"
+
+1. Use um modelo menor (TinyLlama em vez de Mistral)
+2. Feche outros programas
+3. Use GPT-2 Portuguese como fallback
+
+### "Resposta muito lenta"
+
+1. Modelos GGUF sao otimizados para CPU, mas ainda assim levam tempo
+2. TinyLlama: ~5-15 segundos por resposta
+3. Mistral: ~30-60 segundos por resposta
+4. Considere usar GPU se disponivel
+
+---
+
+## Proximos Passos
+
+Para melhorar ainda mais a qualidade offline:
+
+1. **Fine-tuning**: Treinar modelo com documentos especificos
+2. **RAG avancado**: Melhorar o retrieval para contexto mais relevante
+3. **Cache**: Respostas frequentes sao cacheadas automaticamente
+

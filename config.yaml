@@ -130,19 +130,65 @@ rag:
     mmr_diversity: 0.3
   
   # ============================================
-  # GERAÇÃO (local e cloud)
+  # GERACAO (local e cloud)
   # ============================================
-  # Por padrão: usa apenas REGEX para extração (generate_answers: false)
+  # Por padrao: usa apenas REGEX para extracao (generate_answers: false)
   # Com generate_answers: true E modo online + cloud habilitado:
-  #   - LLM complementa regex para dados que regex não captura
-  #   - Regex tem PRIORIDADE para valores numéricos (mais preciso)
-  #   - LLM captura contexto, referências, valores por extenso
+  #   - LLM complementa regex para dados que regex nao captura
+  #   - Regex tem PRIORIDADE para valores numericos (mais preciso)
+  #   - LLM captura contexto, referencias, valores por extenso
   generation:
     mode: "local"
-    local_model: "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
-    generate_answers: false  # PADRÃO: false (usa apenas regex)
+    generate_answers: false  # PADRAO: false (usa apenas regex)
     max_tokens: 500
     temperature: 0.1
+    
+    # ============================================
+    # Modelo Padrao (TinyLlama GGUF - RECOMENDADO)
+    # ============================================
+    # TinyLlama oferece melhor qualidade que GPT-2 Portuguese
+    # com consumo de recursos similar
+    default_model: "tinyllama"  # tinyllama | phi3-mini | gpt2-portuguese
+    
+    # ============================================
+    # Modelos Disponiveis
+    # ============================================
+    models:
+      # TinyLlama 1.1B - PADRAO RECOMENDADO
+      # Equilibrio entre tamanho e qualidade
+      tinyllama:
+        type: "gguf"
+        path: "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+        context_length: 2048
+        max_tokens: 512
+        description: "TinyLlama 1.1B - Bom para Q&A, ~2GB RAM"
+        
+      # Phi-3 Mini - ALTA QUALIDADE
+      # Melhor qualidade, requer mais recursos
+      phi3-mini:
+        type: "gguf"
+        path: "./models/generator/Phi-3-mini-4k-instruct-q4.gguf"
+        context_length: 4096
+        max_tokens: 1024
+        description: "Phi-3 Mini - Excelente qualidade, ~6GB RAM"
+        
+      # Mistral 7B - MELHOR QUALIDADE
+      # Para hardware mais potente
+      mistral-7b:
+        type: "gguf"
+        path: "./models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+        context_length: 4096
+        max_tokens: 1024
+        description: "Mistral 7B - Melhor qualidade, ~8GB RAM"
+        
+      # GPT-2 Portuguese - FALLBACK
+      # Menor qualidade, mas sempre funciona
+      gpt2-portuguese:
+        type: "huggingface"
+        path: "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
+        context_length: 1024
+        max_tokens: 500
+        description: "GPT-2 Portuguese - Fallback, qualidade limitada"
     
     # ============================================
     # Provedores Cloud (requer modo online)
@@ -191,7 +237,17 @@ rag:
       generate_executive_summary: false         # Resumo executivo no relatório
       generate_insights: false                  # Análises e observações
 
-# Validação de texto
+# ============================================
+# Cache de OCR
+# ============================================
+# Armazena texto extraido de PDFs para evitar
+# reprocessamento custoso do OCR
+ocr_cache:
+  enabled: true
+  dir: "./cache/ocr"
+  max_age_hours: 720  # 30 dias
+  
+# Validacao de texto
 validation:
   min_word_count: 10
   min_sentence_coherence: 0.6
@@ -327,4 +383,67 @@ meeting_terms:
     - "emissora"
     - "série"
     - "classe"
+
+# ============================================
+# Configurações do Módulo Q&A
+# ============================================
+# Sistema de Perguntas e Respostas sobre documentos.
+# Permite fazer perguntas em linguagem natural e
+# receber respostas baseadas no conteúdo do PDF.
+qa:
+  enabled: true
+  
+  # ============================================
+  # Templates de Prompts
+  # ============================================
+  # Templates são arquivos .txt em instructions/qa_templates/
+  # Veja _COMO_CRIAR_TEMPLATES.txt para criar seus próprios
+  templates:
+    dir: "./instructions/qa_templates"
+    default: "sistema_padrao"
+    
+    # Detecção automática de template pelo conteúdo
+    auto_detect:
+      enabled: true
+      rules:
+        - pattern: "licen[cç]a|GPL|MIT|Apache|open.?source|AGPL|LGPL"
+          template: "licencas_software"
+        - pattern: "contrato|claus|locação|prestação|parte|contratante"
+          template: "contratos"
+        - pattern: "ata|reunião|assembleia|quotista|delibera"
+          template: "atas_reuniao"
+        - pattern: "inventário|herdeiro|espólio|partilha|falecido"
+          template: "inventario"
+  
+  # ============================================
+  # Configurações de Conversa
+  # ============================================
+  conversation:
+    max_turns: 10                    # Máximo de perguntas no histórico
+    memory_type: "sliding_window"    # full | summary | sliding_window
+  
+  # ============================================
+  # Validação de Respostas
+  # ============================================
+  validation:
+    enabled: true
+    min_confidence: 0.5              # Confiança mínima (0.0 a 1.0)
+    strict_mode: false               # Se true, validação mais rigorosa
+  
+  # ============================================
+  # Cache de Respostas
+  # ============================================
+  cache:
+    enabled: true
+    ttl_hours: 24                    # Tempo de vida do cache em horas
+    max_entries: 1000                # Número máximo de entradas
+    persist: true                    # Salvar cache em disco
+    dir: "./cache/qa_responses"
+  
+  # ============================================
+  # Geração de Respostas
+  # ============================================
+  generation:
+    include_page_references: true    # Incluir "Fonte: página X" nas respostas
+    generate_answers: true           # Se false, retorna apenas contexto
 

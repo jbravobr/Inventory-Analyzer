@@ -182,15 +182,23 @@ class LLMSummarizationConfig:
 
 @dataclass
 class RAGGenerationConfig:
-    """Configurações de geração RAG."""
+    """Configuracoes de geracao RAG."""
     
     mode: str = "local"
-    local_model: str = "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
     generate_answers: bool = False
     max_tokens: int = 500
     temperature: float = 0.1
     
-    # Configurações de LLM cloud
+    # Modelo padrao (novo sistema GGUF)
+    default_model: str = "tinyllama"  # tinyllama | phi3-mini | gpt2-portuguese
+    
+    # Configuracoes de modelos (dict para flexibilidade)
+    models: Dict[str, Any] = field(default_factory=dict)
+    
+    # Path do modelo local (fallback - sera depreciado)
+    local_model: str = "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
+    
+    # Configuracoes de LLM cloud
     cloud_providers: CloudProvidersConfig = field(default_factory=CloudProvidersConfig)
     llm_extraction: LLMExtractionConfig = field(default_factory=LLMExtractionConfig)
     llm_summarization: LLMSummarizationConfig = field(default_factory=LLMSummarizationConfig)
