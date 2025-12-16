@@ -116,9 +116,17 @@ python run.py ocr-cache --clear
 
 ---
 
-## Uso no Q&A
+## Uso Automatico em Todos os Comandos
 
-O sistema Q&A usa o cache automaticamente:
+O cache e usado automaticamente em todos os comandos do sistema:
+
+| Comando | Cache OCR |
+|---------|-----------|
+| `qa` | Automatico |
+| `analyze` | Automatico |
+| `extract` | Automatico |
+
+### Exemplo - Sistema Q&A
 
 ```bash
 # Primeira vez: executa OCR (lento)
@@ -130,10 +138,34 @@ python run.py qa documento.pdf -q "pergunta"
 # Saida: "[CACHE] Usando texto em cache (OCR)"
 ```
 
+### Exemplo - Analise Completa
+
+```bash
+# Primeira vez: executa OCR
+python run.py analyze documento.pdf
+
+# Segunda vez: cache instantaneo
+python run.py analyze documento.pdf
+```
+
+### Exemplo - Extracao de Texto
+
+```bash
+# Primeira vez: executa OCR e salva no cache
+python run.py extract documento.pdf
+
+# Segunda vez: usa cache
+python run.py extract documento.pdf
+```
+
 ### Desabilitar Cache para uma Consulta
 
 ```bash
+# No comando qa
 python run.py qa documento.pdf -q "pergunta" --no-ocr-cache
+
+# No comando extract
+python run.py extract documento.pdf --no-cache
 ```
 
 ---

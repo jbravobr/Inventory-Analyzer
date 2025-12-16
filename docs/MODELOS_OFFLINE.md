@@ -134,15 +134,26 @@ models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
 | RAM Necessaria | ~6 GB |
 | Qualidade Q&A | Excelente |
 | Velocidade CPU | Media |
+| Contexto | 4096 tokens |
 
 **Download:**
 - HuggingFace: [Phi-3-mini-4k-instruct-GGUF](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf)
 - Arquivo: `Phi-3-mini-4k-instruct-q4.gguf`
 
-**Instalacao:**
+**Download Rapido (PowerShell):**
+```powershell
+# Baixar Phi-3 Mini (~2.3 GB)
+Invoke-WebRequest -Uri "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf" -OutFile "models\generator\Phi-3-mini-4k-instruct-q4.gguf"
+```
+
+**Download Rapido (CMD com curl):**
+```cmd
+curl -L -o models\generator\Phi-3-mini-4k-instruct-q4.gguf "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf"
+```
+
+**Uso:**
 ```bash
-# Baixe o arquivo e coloque em:
-models/generator/Phi-3-mini-4k-instruct-q4.gguf
+python run.py qa documento.pdf -q "pergunta" --model phi3-mini
 ```
 
 ---
@@ -153,19 +164,30 @@ models/generator/Phi-3-mini-4k-instruct-q4.gguf
 
 | Caracteristica | Valor |
 |----------------|-------|
-| Tamanho | ~4 GB |
+| Tamanho | ~4.1 GB |
 | RAM Necessaria | ~8 GB |
 | Qualidade Q&A | Excelente |
 | Velocidade CPU | Lento |
+| Contexto | 4096 tokens |
 
 **Download:**
 - HuggingFace: [Mistral-7B-Instruct-GGUF](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF)
 - Arquivo: `mistral-7b-instruct-v0.2.Q4_K_M.gguf`
 
-**Instalacao:**
+**Download Rapido (PowerShell):**
+```powershell
+# Baixar Mistral 7B (~4.1 GB)
+Invoke-WebRequest -Uri "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf" -OutFile "models\generator\mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+```
+
+**Download Rapido (CMD com curl):**
+```cmd
+curl -L -o models\generator\mistral-7b-instruct-v0.2.Q4_K_M.gguf "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+```
+
+**Uso:**
 ```bash
-# Baixe o arquivo e coloque em:
-models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+python run.py qa documento.pdf -q "pergunta" --model mistral-7b
 ```
 
 ---
@@ -331,6 +353,75 @@ models/
 2. TinyLlama: ~5-15 segundos por resposta
 3. Mistral: ~30-60 segundos por resposta
 4. Considere usar GPU se disponivel
+
+---
+
+## Comparativo de Hardware e Qualidade
+
+### Requisitos de Hardware
+
+| Modelo | Arquivo | Tamanho | RAM | Contexto | Tempo/Resposta |
+|--------|---------|---------|-----|----------|----------------|
+| TinyLlama 1.1B | `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf` | 670 MB | 2 GB | 2048 | 5-15s |
+| Phi-3 Mini | `Phi-3-mini-4k-instruct-q4.gguf` | 2.3 GB | 6 GB | 4096 | 15-30s |
+| Mistral 7B | `mistral-7b-instruct-v0.2.Q4_K_M.gguf` | 4.1 GB | 8 GB | 4096 | 30-60s |
+| GPT-2 Port. | (ja incluso) | 500 MB | 2 GB | 1024 | 3-8s |
+
+### Qualidade de Respostas
+
+| Modelo | Portugues | Contexto Longo | Instrucoes Complexas | Recomendado Para |
+|--------|-----------|----------------|---------------------|------------------|
+| TinyLlama | Bom | Limitado | Basico | Uso geral |
+| Phi-3 Mini | Muito Bom | Bom | Excelente | Analises detalhadas |
+| Mistral 7B | Excelente | Excelente | Excelente | Maxima qualidade |
+| GPT-2 Port. | Basico | Muito Limitado | Basico | Fallback |
+
+---
+
+## Script de Download de Modelos
+
+Crie o arquivo `scripts/download_models.ps1`:
+
+```powershell
+# Download de modelos adicionais
+# Execute: .\scripts\download_models.ps1
+
+param(
+    [string]$Model = "all"
+)
+
+$modelsDir = "models\generator"
+
+# Phi-3 Mini
+if ($Model -eq "all" -or $Model -eq "phi3") {
+    Write-Host "Baixando Phi-3 Mini (~2.3 GB)..." -ForegroundColor Cyan
+    $phi3Url = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf"
+    Invoke-WebRequest -Uri $phi3Url -OutFile "$modelsDir\Phi-3-mini-4k-instruct-q4.gguf"
+    Write-Host "Phi-3 Mini baixado!" -ForegroundColor Green
+}
+
+# Mistral 7B
+if ($Model -eq "all" -or $Model -eq "mistral") {
+    Write-Host "Baixando Mistral 7B (~4.1 GB)..." -ForegroundColor Cyan
+    $mistralUrl = "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+    Invoke-WebRequest -Uri $mistralUrl -OutFile "$modelsDir\mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+    Write-Host "Mistral 7B baixado!" -ForegroundColor Green
+}
+
+Write-Host "`nVerifique os modelos com: python run.py models --check" -ForegroundColor Yellow
+```
+
+**Uso:**
+```powershell
+# Baixar todos
+.\scripts\download_models.ps1
+
+# Apenas Phi-3
+.\scripts\download_models.ps1 -Model phi3
+
+# Apenas Mistral
+.\scripts\download_models.ps1 -Model mistral
+```
 
 ---
 

@@ -109,7 +109,8 @@ class SmartGenerator(ResponseGenerator):
     def __init__(
         self,
         preferred_model: Optional[str] = None,
-        fallback_enabled: bool = True
+        fallback_enabled: bool = True,
+        settings = None
     ):
         """
         Inicializa o gerador inteligente.
@@ -117,7 +118,10 @@ class SmartGenerator(ResponseGenerator):
         Args:
             preferred_model: Modelo preferido (opcional)
             fallback_enabled: Habilitar fallback automatico
+            settings: Configurações (opcional)
         """
+        # Não chama super().__init__() para evitar dependência de settings
+        self.settings = settings
         self.preferred_model = preferred_model
         self.fallback_enabled = fallback_enabled
         self._generator: Optional[ResponseGenerator] = None
@@ -125,6 +129,11 @@ class SmartGenerator(ResponseGenerator):
         self._model_config: Optional[Dict[str, Any]] = None
         self._initialized = False
         self._fallback_used = False
+        self._total_tokens = 0
+    
+    def initialize(self) -> None:
+        """Implementação do método abstrato - inicializa o gerador."""
+        self.ensure_initialized()
     
     def _select_model(self) -> tuple[str, Dict[str, Any]]:
         """Seleciona o modelo a ser usado."""
@@ -161,8 +170,7 @@ class SmartGenerator(ResponseGenerator):
         else:
             # HuggingFace (GPT-2)
             return LocalGenerator(
-                model_path=config["path"],
-                max_length=config["max_tokens"],
+                model_name=config["path"],
             )
     
     def ensure_initialized(self) -> None:

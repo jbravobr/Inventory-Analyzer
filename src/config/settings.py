@@ -185,7 +185,7 @@ class RAGGenerationConfig:
     """Configuracoes de geracao RAG."""
     
     mode: str = "local"
-    generate_answers: bool = False
+    generate_answers: bool = True
     max_tokens: int = 500
     temperature: float = 0.1
     

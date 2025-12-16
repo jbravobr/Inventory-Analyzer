@@ -86,7 +86,8 @@ class GGUFGenerator(ResponseGenerator):
     def __init__(
         self,
         model_config: Optional[GGUFModelConfig] = None,
-        model_name: str = "tinyllama"
+        model_name: str = "tinyllama",
+        settings = None
     ):
         """
         Inicializa o gerador GGUF.
@@ -94,7 +95,12 @@ class GGUFGenerator(ResponseGenerator):
         Args:
             model_config: Configuracao customizada do modelo
             model_name: Nome do modelo pre-definido (se model_config nao fornecido)
+            settings: Configurações (opcional)
         """
+        # Não chama super().__init__() para evitar dependência de settings
+        self.settings = settings
+        self._total_tokens = 0
+        
         if model_config:
             self.config = model_config
         elif model_name in PREDEFINED_MODELS:
@@ -107,6 +113,10 @@ class GGUFGenerator(ResponseGenerator):
         
         self._llm = None
         self._initialized = False
+    
+    def initialize(self) -> None:
+        """Implementação do método abstrato - inicializa o modelo."""
+        self.ensure_initialized()
     
     def ensure_initialized(self) -> None:
         """Garante que o modelo esta carregado."""
@@ -164,21 +174,28 @@ class GGUFGenerator(ResponseGenerator):
         Returns:
             Prompt formatado
         """
-        if not system_prompt:
-            system_prompt = (
-                "Voce e um assistente que responde perguntas sobre documentos. "
-                "Responda apenas com base no contexto fornecido. "
-                "Se a informacao nao estiver no contexto, diga que nao foi encontrada."
-            )
+        # Para modelos com contexto pequeno, usa prompt simplificado
+        simple_system = (
+            "Voce e um assistente que responde perguntas sobre documentos. "
+            "Responda apenas com base no contexto fornecido. "
+            "Se a informacao nao estiver no contexto, diga que nao foi encontrada."
+        )
+        
+        # Se o contexto total for muito grande, usa prompt simples
+        if system_prompt and len(system_prompt) > 500:
+            logger.debug("Usando prompt simplificado devido ao tamanho do contexto")
+            system_prompt = simple_system
+        elif not system_prompt:
+            system_prompt = simple_system
         
         if self.config.prompt_template == "chatml":
             # Formato ChatML (TinyLlama, Phi-3)
             return (
                 f"<|im_start|>system\n{system_prompt}<|im_end|>\n"
-                f"<|im_start|>user\n"
-                f"Contexto:\n{context}\n\n"
-                f"Pergunta: {query}<|im_end|>\n"
-                f"<|im_start|>assistant\n"
+                f"<|im_start|>user\nCom base no contexto abaixo, responda a pergunta.\n\n"
+                f"CONTEXTO:\n{context}\n\n"
+                f"PERGUNTA: {query}\n\nResponda de forma direta e objetiva.<|im_end|>\n"
+                f"<|im_start|>assistant\nRESPOSTA: "
             )
         
         elif self.config.prompt_template == "llama":
@@ -228,11 +245,22 @@ class GGUFGenerator(ResponseGenerator):
         """
         self.ensure_initialized()
         
-        # Formata prompt
-        prompt = self._format_prompt(query, context, system_prompt)
+        # Estima limite de caracteres para o contexto
+        # TinyLlama tem janela de 2048 tokens
+        # Reserva: 512 para resposta, 300 para prompt/formatação, 100 para query
+        # Margem adicional de segurança: 200 tokens
+        # Português: ~1 token por caractere  
+        # Limite fixo conservador para garantir funcionamento
+        max_context_chars = min(600, self.config.context_length - self.config.max_tokens - 700)
         
-        # Trunca contexto se necessario
-        max_prompt_tokens = self.config.context_length - self.config.max_tokens - 100
+        # Trunca contexto se muito grande
+        truncated_context = context
+        if len(context) > max_context_chars:
+            truncated_context = context[:max_context_chars] + "\n...[truncado]"
+            logger.info(f"Contexto truncado de {len(context)} para {len(truncated_context)} caracteres")
+        
+        # Formata prompt com contexto possivelmente truncado
+        prompt = self._format_prompt(query, truncated_context, system_prompt)
         
         # Gera resposta
         try:
@@ -259,8 +287,9 @@ class GGUFGenerator(ResponseGenerator):
             
             return GeneratedResponse(
                 answer=answer,
+                sources=[],
                 confidence=confidence,
-                model=self.config.name,
+                model_name=self.config.name,
                 metadata={
                     "tokens_generated": output["usage"]["completion_tokens"],
                     "prompt_tokens": output["usage"]["prompt_tokens"],
@@ -272,8 +301,9 @@ class GGUFGenerator(ResponseGenerator):
             logger.error(f"Erro na geracao GGUF: {e}")
             return GeneratedResponse(
                 answer=f"Erro ao gerar resposta: {str(e)[:100]}",
+                sources=[],
                 confidence=0.0,
-                model=self.config.name,
+                model_name=self.config.name,
             )
     
     def get_model_info(self) -> Dict[str, Any]:

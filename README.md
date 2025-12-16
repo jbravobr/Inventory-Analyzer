@@ -274,6 +274,15 @@ python run.py qa-cache --frequent
 
 O sistema armazena automaticamente o texto extraido de PDFs para evitar reprocessamento.
 
+**O cache e usado automaticamente em todos os comandos** (`analyze`, `extract`, `qa`).
+Quando um documento ja foi processado, o texto e recuperado do cache instantaneamente.
+
+### Beneficios
+
+- **Velocidade**: Evita reprocessamento OCR custoso (economia de 30s-2min por documento)
+- **Consistencia**: Mesmo texto extraido em todas as analises
+- **Automatico**: Funciona sem configuracao adicional
+
 ### Comandos de Cache OCR
 
 ```powershell
@@ -307,8 +316,8 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 |--------|---------|-----|-----------|-----------------|
 | TinyLlama-1.1B | 670 MB | ~2 GB | Boa | SIM (padrao) |
 | GPT-2 Portuguese | 500 MB | ~2 GB | Basica | SIM (fallback) |
-| Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | Nao |
-| Mistral-7B | 4 GB | ~8 GB | Excelente | Nao |
+| Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | Nao (download manual) |
+| Mistral-7B | 4.1 GB | ~8 GB | Excelente | Nao (download manual) |
 
 ### Ativar TinyLlama (Recomendado)
 
@@ -325,7 +334,22 @@ pip install llama-cpp-python
 **Nota:** Requer Visual Studio Build Tools para compilar.
 Se a instalacao falhar, o sistema usa GPT-2 automaticamente.
 
-### Verificar Modelos
+### Baixar Modelos Adicionais (Phi-3 ou Mistral)
+
+Para melhor qualidade de respostas:
+
+```powershell
+# Baixar todos os modelos
+.\scripts\download_models.ps1
+
+# Apenas Phi-3 Mini (2.3 GB)
+.\scripts\download_models.ps1 -Model phi3
+
+# Apenas Mistral 7B (4.1 GB)
+.\scripts\download_models.ps1 -Model mistral
+```
+
+### Verificar e Usar Modelos
 
 ```powershell
 # Verificar status dos modelos
@@ -333,6 +357,11 @@ python run.py models --check
 
 # Listar todos os modelos
 python run.py models --list
+
+# Usar modelo especifico no Q&A
+python run.py qa doc.pdf -q "pergunta" --model tinyllama
+python run.py qa doc.pdf -q "pergunta" --model phi3-mini
+python run.py qa doc.pdf -q "pergunta" --model mistral-7b
 ```
 
 > Para documentacao completa, veja [docs/MODELOS_OFFLINE.md](docs/MODELOS_OFFLINE.md)

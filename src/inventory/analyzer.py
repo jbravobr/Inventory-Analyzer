@@ -15,6 +15,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from rag.rag_pipeline import RAGPipeline, RAGConfig
 from core.pdf_reader import PDFReader
 from core.ocr_extractor import OCRExtractor
+from core.ocr_cache import get_ocr_cache
 
 logger = logging.getLogger(__name__)
 
@@ -198,9 +199,31 @@ class InventoryAnalyzer:
         
         logger.info(f"Iniciando análise de inventário: {pdf_path}")
         
-        # Lê e processa o PDF
+        # Lê o PDF
         self._document = self.reader.read(pdf_path)
-        self.ocr.extract(self._document)
+        
+        # Verifica cache de OCR
+        ocr_cache = get_ocr_cache()
+        cached_doc = ocr_cache.get(pdf_path)
+        
+        if cached_doc:
+            logger.info(f"Usando cache de OCR para: {pdf_path.name}")
+            # Preenche documento com texto do cache
+            for i, page in enumerate(self._document.pages):
+                if i < len(cached_doc.pages):
+                    page.text = cached_doc.pages[i].get("text", "")
+        else:
+            logger.info(f"Extraindo texto via OCR: {pdf_path.name}")
+            ocr_start = time.time()
+            self.ocr.extract(self._document)
+            ocr_time = time.time() - ocr_start
+            
+            # Salva no cache
+            pages_data = [
+                {"number": p.number, "text": p.text}
+                for p in self._document.pages
+            ]
+            ocr_cache.save(pdf_path, pages_data, ocr_time)
         
         # Indexa no RAG
         self.rag.index_document(self._document)

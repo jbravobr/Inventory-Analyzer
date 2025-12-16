@@ -21,8 +21,10 @@ from config.mode_manager import get_mode_manager, ModeManager
 from models.document import Document
 from core.pdf_reader import PDFReader
 from core.ocr_extractor import OCRExtractor
+from core.ocr_cache import get_ocr_cache, OCRCache
 from rag.rag_pipeline import RAGPipeline, RAGConfig
-from rag.generator import get_response_generator, ResponseGenerator
+from rag.generator import ResponseGenerator
+from rag.smart_generator import SmartGenerator, get_smart_generator
 
 from .template_loader import TemplateLoader, PromptTemplate
 from .conversation import Conversation, ConversationTurn, MemoryType
@@ -266,11 +268,37 @@ class QAEngine:
         reader = PDFReader(self.settings)
         self._document = reader.read(pdf_path)
         
-        self._report_progress("Extraindo texto com OCR...", 0.2)
+        # Verifica cache de OCR
+        ocr_cache = get_ocr_cache()
+        cached_doc = ocr_cache.get(pdf_path)
         
-        # Extrai texto
-        ocr = OCRExtractor(self.settings)
-        ocr.extract(self._document)
+        if cached_doc:
+            self._report_progress("Usando texto do cache OCR...", 0.2)
+            logger.info(f"Cache OCR hit: {pdf_path.name}")
+            
+            # Preenche documento com texto do cache
+            for i, page in enumerate(self._document.pages):
+                if i < len(cached_doc.pages):
+                    page.text = cached_doc.pages[i].get("text", "")
+            
+        else:
+            self._report_progress("Extraindo texto com OCR...", 0.2)
+            
+            # Extrai texto
+            import time
+            start_time = time.time()
+            
+            ocr = OCRExtractor(self.settings)
+            ocr.extract(self._document)
+            
+            extraction_time = time.time() - start_time
+            
+            # Salva no cache
+            pages_data = [
+                {"number": p.number, "text": p.text}
+                for p in self._document.pages
+            ]
+            ocr_cache.save(pdf_path, pages_data, extraction_time)
         
         self._report_progress("Indexando documento...", 0.4)
         
@@ -434,7 +462,7 @@ class QAEngine:
             pages = retrieval.retrieval_result.pages
         
         # Gera resposta
-        answer = self._generate_answer(
+        answer, generator_metadata = self._generate_answer(
             question=enriched_question,
             context=context,
             pages=pages,
@@ -485,6 +513,13 @@ class QAEngine:
         
         processing_time = time.time() - start_time
         
+        # Combina metadata do retrieval com metadata do generator
+        response_metadata = {
+            "chunks_retrieved": len(retrieval.retrieval_result.chunks),
+            "mode": "offline" if self.mode_manager.is_offline else "online",
+        }
+        response_metadata.update(generator_metadata)
+        
         return QAResponse(
             question=question,
             answer=answer,
@@ -494,10 +529,7 @@ class QAEngine:
             template_used=template_name,
             processing_time=processing_time,
             validation=validation,
-            metadata={
-                "chunks_retrieved": len(retrieval.retrieval_result.chunks),
-                "mode": "offline" if self.mode_manager.is_offline else "online",
-            }
+            metadata=response_metadata
         )
     
     def _generate_answer(
@@ -506,13 +538,19 @@ class QAEngine:
         context: str,
         pages: List[int],
         template: Optional[PromptTemplate]
-    ) -> str:
-        """Gera resposta usando o template e generator."""
+    ) -> tuple[str, Dict[str, Any]]:
+        """
+        Gera resposta usando o template e generator.
+        
+        Returns:
+            Tuple com (answer, metadata)
+        """
         
         if not context:
             return (
                 "Não foi possível encontrar informações relevantes "
-                "no documento para responder esta pergunta."
+                "no documento para responder esta pergunta.",
+                {}
             )
         
         # Prepara prompts
@@ -529,11 +567,14 @@ class QAEngine:
             system_prompt = None
             user_prompt = f"Contexto:\n{context}\n\nPergunta: {question}"
         
-        # Obtém generator
+        # Obtém generator (usa SmartGenerator para selecionar melhor modelo)
         if self._generator is None:
-            self._generator = get_response_generator(
-                settings=self.settings,
-                mode_manager=self.mode_manager
+            # Usa modelo especificado na config ou deixa SmartGenerator escolher
+            preferred_model = self.config.generation_model
+            logger.info(f"Criando gerador com modelo preferido: {preferred_model or 'auto'}")
+            self._generator = get_smart_generator(
+                preferred_model=preferred_model,
+                fallback_enabled=True
             )
         
         # Gera resposta
@@ -544,7 +585,10 @@ class QAEngine:
                 context=context,
                 system_prompt=system_prompt
             )
-            return response.answer
+            
+            # Retorna answer e metadata do generator
+            metadata = response.metadata or {}
+            return response.answer, metadata
             
         except Exception as e:
             logger.error(f"Erro na geração de resposta: {e}")
@@ -552,7 +596,8 @@ class QAEngine:
             # Fallback: retorna contexto
             return (
                 f"Contexto encontrado no documento:\n\n{context[:1500]}"
-                f"\n\n(Erro na geração de resposta elaborada: {str(e)[:100]})"
+                f"\n\n(Erro na geração de resposta elaborada: {str(e)[:100]})",
+                {"error": str(e)}
             )
     
     def _calculate_confidence(
@@ -636,6 +681,38 @@ class QAEngine:
         """Define o template atual."""
         self._current_template = self.template_loader.get_template(template_name)
         logger.info(f"Template alterado para: {template_name}")
+    
+    def set_model(self, model_name: str) -> str:
+        """
+        Define o modelo de geração a usar.
+        
+        Args:
+            model_name: Nome do modelo (tinyllama, phi3-mini, gpt2-portuguese)
+        
+        Returns:
+            str: Nome do modelo configurado
+        """
+        # Recria o gerador com o novo modelo
+        self.config.generation_model = model_name
+        self._generator = None  # Força recriação
+        
+        # Cria novo gerador para verificar se funciona
+        self._generator = get_smart_generator(
+            preferred_model=model_name,
+            fallback_enabled=True
+        )
+        self._generator.ensure_initialized()
+        
+        actual_model = self._generator.model_name
+        logger.info(f"Modelo alterado para: {actual_model}")
+        
+        return actual_model
+    
+    def get_current_model(self) -> str:
+        """Retorna o nome do modelo em uso."""
+        if self._generator and hasattr(self._generator, 'model_name'):
+            return self._generator.model_name
+        return self.config.generation_model or "auto"
     
     def get_document_info(self) -> Dict[str, Any]:
         """Retorna informações do documento carregado."""

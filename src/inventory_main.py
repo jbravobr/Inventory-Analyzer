@@ -490,7 +490,8 @@ def _print_summary(result):
 @cli.command()
 @click.argument('pdf_path', type=click.Path(exists=True))
 @click.option('-o', '--output', default='./output', help='Diretório de saída')
-def extract(pdf_path: str, output: str):
+@click.option('--no-cache', is_flag=True, help='Desabilita cache de OCR')
+def extract(pdf_path: str, output: str, no_cache: bool):
     """
     Apenas extrai texto do PDF (sem análise RAG).
     
@@ -500,6 +501,8 @@ def extract(pdf_path: str, output: str):
     
     from core.pdf_reader import PDFReader
     from core.ocr_extractor import OCRExtractor
+    from core.ocr_cache import get_ocr_cache
+    import time
     
     pdf_path = Path(pdf_path)
     output_dir = Path(output)
@@ -507,20 +510,40 @@ def extract(pdf_path: str, output: str):
     
     console.print(f"\nExtraindo texto de: [bold]{pdf_path.name}[/bold]\n")
     
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
-    ) as progress:
-        task = progress.add_task("Lendo PDF...", total=None)
+    reader = PDFReader()
+    document = reader.read(pdf_path)
+    
+    # Verifica cache de OCR
+    ocr_cache = get_ocr_cache()
+    cached_doc = ocr_cache.get(pdf_path) if not no_cache else None
+    
+    if cached_doc:
+        console.print("[green][CACHE] Usando texto em cache[/green]")
+        # Preenche documento com texto do cache
+        for i, page in enumerate(document.pages):
+            if i < len(cached_doc.pages):
+                page.text = cached_doc.pages[i].get("text", "")
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("Executando OCR...", total=None)
+            
+            ocr_start = time.time()
+            ocr = OCRExtractor()
+            ocr.extract(document)
+            ocr_time = time.time() - ocr_start
         
-        reader = PDFReader()
-        document = reader.read(pdf_path)
-        
-        progress.update(task, description="Executando OCR...")
-        
-        ocr = OCRExtractor()
-        ocr.extract(document)
+        # Salva no cache
+        if not no_cache:
+            pages_data = [
+                {"number": p.number, "text": p.text}
+                for p in document.pages
+            ]
+            ocr_cache.save(pdf_path, pages_data, ocr_time)
+            console.print(f"[green][CACHE] Texto salvo no cache ({ocr_time:.1f}s)[/green]")
     
     # Salva texto
     output_file = output_dir / f"{pdf_path.stem}_texto.txt"
@@ -528,13 +551,13 @@ def extract(pdf_path: str, output: str):
     with open(output_file, 'w', encoding='utf-8') as f:
         for page in document.pages:
             f.write(f"{'='*60}\n")
-            f.write(f"PÁGINA {page.number}\n")
+            f.write(f"PAGINA {page.number}\n")
             f.write(f"{'='*60}\n\n")
             f.write(page.text or "(sem texto)")
             f.write("\n\n")
     
     console.print(f"[OK] Texto extraido: [green]{output_file}[/green]")
-    console.print(f"Total de páginas: {len(document.pages)}")
+    console.print(f"Total de paginas: {len(document.pages)}")
 
 
 @cli.command()
@@ -942,6 +965,7 @@ def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optiona
     console.print("  [yellow]/limpar[/yellow]    - Limpa historico da conversa")
     console.print("  [yellow]/exportar[/yellow]  - Exporta conversa para arquivo")
     console.print("  [yellow]/template[/yellow]  - Muda o template")
+    console.print("  [yellow]/modelo[/yellow]    - Muda o modelo de linguagem")
     console.print("  [yellow]/info[/yellow]      - Mostra informacoes do documento")
     console.print()
     
@@ -1000,8 +1024,32 @@ def _run_interactive_qa(qa_engine, output_path: Optional[str], save_txt: Optiona
                 info = qa_engine.get_document_info()
                 console.print(f"Documento: {info.get('name', 'N/A')}")
                 console.print(f"Paginas: {info.get('pages', 'N/A')}")
+                console.print(f"Modelo atual: {qa_engine.get_current_model()}")
                 console.print(f"Perguntas nesta sessao: {qa_engine.conversation.turn_count}")
                 console.print()
+                continue
+            
+            elif user_input.lower().startswith("/modelo"):
+                parts = user_input.split(maxsplit=1)
+                if len(parts) > 1:
+                    model_name = parts[1].strip().lower()
+                    try:
+                        console.print(f"Carregando modelo [cyan]{model_name}[/cyan]...", style="dim")
+                        actual = qa_engine.set_model(model_name)
+                        printer.print_success(f"Modelo alterado para: {actual}")
+                    except Exception as e:
+                        printer.print_error(f"Erro ao mudar modelo: {e}")
+                        console.print("Modelos disponiveis: tinyllama, phi3-mini, gpt2-portuguese")
+                else:
+                    current = qa_engine.get_current_model()
+                    console.print(f"Modelo atual: [cyan]{current}[/cyan]")
+                    console.print("Modelos disponiveis:")
+                    console.print("  * tinyllama      - TinyLlama 1.1B (recomendado)")
+                    console.print("  * phi3-mini      - Phi-3 Mini (melhor qualidade)")
+                    console.print("  * gpt2-portuguese - GPT-2 Portuguese (fallback)")
+                    console.print()
+                    console.print("Use: /modelo <nome>")
+                    console.print()
                 continue
             
             elif user_input.startswith("/"):
@@ -1094,19 +1142,32 @@ def _print_qa_response(response, compact: bool = False):
     answer_text = response.answer
     
     # Adiciona metadados
+    model_info = ""
+    if response.metadata and "smart_generator" in response.metadata:
+        sg_info = response.metadata["smart_generator"]
+        model_info = sg_info.get("model_name", "")
+    
     if not compact:
         footer = []
         if response.pages:
             footer.append(f"Paginas: {', '.join(map(str, response.pages))}")
         footer.append(f"Confianca: {response.confidence:.0%} ({confidence_label})")
         footer.append(f"Tempo: {response.processing_time:.2f}s")
+        if model_info:
+            footer.append(f"Modelo: {model_info}")
         if response.from_cache:
             footer.append("(Cache)")
         
         answer_text += "\n\n" + " | ".join(footer)
     else:
+        footer_parts = []
         if response.pages:
-            answer_text += f"\n\n[dim]Paginas: {', '.join(map(str, response.pages))} | Confianca: {response.confidence:.0%}[/dim]"
+            footer_parts.append(f"Paginas: {', '.join(map(str, response.pages))}")
+        footer_parts.append(f"Confianca: {response.confidence:.0%}")
+        if model_info:
+            footer_parts.append(f"Modelo: {model_info}")
+        if footer_parts:
+            answer_text += f"\n\n[dim]{' | '.join(footer_parts)}[/dim]"
     
     console.print(Panel(
         answer_text,
