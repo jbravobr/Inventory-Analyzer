@@ -378,6 +378,62 @@ models/
 
 ---
 
+## Configuracao de Contexto (max_context_chars)
+
+O parametro `max_context_chars` controla a quantidade maxima de caracteres do documento que e enviada ao modelo. Este e um dos parametros mais importantes para a qualidade das respostas.
+
+### Valores Recomendados
+
+| Modelo | max_context_chars | Justificativa |
+|--------|-------------------|---------------|
+| TinyLlama | 600-800 | Modelo pequeno com janela de 2048 tokens. Prompts simples funcionam melhor. Valores maiores podem causar erro de "tokens exceed context". |
+| Phi-3 Mini | 2000-3000 | Janela de 4096 tokens permite mais contexto. Melhor compreensao de documentos longos. |
+| Mistral 7B | 2500-3500 | Janela grande e modelo robusto. Consegue processar contextos maiores com qualidade. |
+| GPT-2 Portuguese | 400-600 | Modelo muito limitado. Contextos maiores degradam a qualidade. |
+
+### Como Ajustar
+
+Edite o arquivo `config.yaml`:
+
+```yaml
+rag:
+  generation:
+    models:
+      tinyllama:
+        max_context_chars: 1000    # Aumente para mais contexto
+        # ...
+      phi3-mini:
+        max_context_chars: 2500    # Phi-3 aguenta mais
+        # ...
+```
+
+### Impacto na Qualidade
+
+**Contexto muito pequeno:**
+- Respostas incompletas ou genericas
+- Modelo nao tem informacao suficiente
+- Pode "alucinar" informacoes
+
+**Contexto muito grande:**
+- Excede limite de tokens do modelo
+- Respostas truncadas ou erros
+- Performance degradada
+
+### Dica: Ajuste Fino
+
+Se as respostas estao imprecisas, experimente:
+
+1. **Aumentar max_context_chars** em 200-500 caracteres
+2. **Testar com a mesma pergunta** para comparar
+3. **Observar logs** para ver se contexto esta sendo truncado
+
+```bash
+# Ver logs detalhados
+python run.py qa doc.pdf -q "pergunta" --model tinyllama 2>&1 | grep -i "truncado"
+```
+
+---
+
 ## Script de Download de Modelos
 
 Crie o arquivo `scripts/download_models.ps1`:

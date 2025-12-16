@@ -153,6 +153,19 @@ rag:
     # ============================================
     # Modelos Disponiveis
     # ============================================
+    # max_context_chars: Quantidade maxima de caracteres do documento
+    #                    enviados ao modelo. Valores maiores = mais contexto
+    #                    = respostas potencialmente melhores, mas deve
+    #                    respeitar o limite de tokens do modelo.
+    # 
+    # Valores recomendados:
+    # | Modelo         | max_context_chars | Justificativa                    |
+    # |----------------|-------------------|----------------------------------|
+    # | tinyllama      | 600-800           | Modelo pequeno, janela de 2048   |
+    # | phi3-mini      | 2000-3000         | Janela maior, melhor compreensao |
+    # | mistral-7b     | 2500-3500         | Janela grande, modelo robusto    |
+    # | gpt2-portuguese| 400-600           | Muito limitado                   |
+    #
     models:
       # TinyLlama 1.1B - PADRAO RECOMENDADO
       # Equilibrio entre tamanho e qualidade
@@ -161,6 +174,7 @@ rag:
         path: "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
         context_length: 2048
         max_tokens: 512
+        max_context_chars: 700     # Modelo pequeno, janela limitada de 2048 tokens
         description: "TinyLlama 1.1B - Bom para Q&A, ~2GB RAM"
         
       # Phi-3 Mini - ALTA QUALIDADE
@@ -170,6 +184,7 @@ rag:
         path: "./models/generator/Phi-3-mini-4k-instruct-q4.gguf"
         context_length: 4096
         max_tokens: 1024
+        max_context_chars: 2500    # Janela maior, melhor compreensao
         description: "Phi-3 Mini - Excelente qualidade, ~6GB RAM"
         
       # Mistral 7B - MELHOR QUALIDADE
@@ -179,6 +194,7 @@ rag:
         path: "./models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
         context_length: 4096
         max_tokens: 1024
+        max_context_chars: 3000    # Janela grande, modelo robusto
         description: "Mistral 7B - Melhor qualidade, ~8GB RAM"
         
       # GPT-2 Portuguese - FALLBACK
@@ -188,6 +204,7 @@ rag:
         path: "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb"
         context_length: 1024
         max_tokens: 500
+        max_context_chars: 500     # Muito limitado
         description: "GPT-2 Portuguese - Fallback, qualidade limitada"
     
     # ============================================

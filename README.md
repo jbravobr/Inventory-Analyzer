@@ -312,12 +312,14 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 
 ### Status dos Modelos
 
-| Modelo | Tamanho | RAM | Qualidade | Incluso no Repo |
-|--------|---------|-----|-----------|-----------------|
-| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | SIM (padrao) |
-| GPT-2 Portuguese | 500 MB | ~2 GB | Basica | SIM (fallback) |
-| Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | Nao (download manual) |
-| Mistral-7B | 4.1 GB | ~8 GB | Excelente | Nao (download manual) |
+| Modelo | Tamanho | RAM | Qualidade | max_context_chars | Incluso |
+|--------|---------|-----|-----------|-------------------|---------|
+| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | 700 | SIM (padrao) |
+| Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | 2500 | Nao |
+| Mistral-7B | 4.1 GB | ~8 GB | Excelente | 3000 | Nao |
+| GPT-2 Portuguese | 500 MB | ~2 GB | Basica | 500 | SIM (fallback) |
+
+> **max_context_chars**: quantidade de caracteres do documento enviados ao modelo. Modelos maiores suportam mais contexto e geram respostas melhores.
 
 ### Ativar TinyLlama (Recomendado)
 

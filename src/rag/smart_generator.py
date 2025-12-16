@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # Configuracoes dos modelos
+# max_context_chars: limite de caracteres do documento enviados ao modelo
 MODEL_CONFIGS = {
     "tinyllama": {
         "type": "gguf",
@@ -28,6 +29,7 @@ MODEL_CONFIGS = {
         "name": "TinyLlama-1.1B-Chat",
         "context_length": 2048,
         "max_tokens": 512,
+        "max_context_chars": 700,  # Modelo pequeno, janela limitada
         "quality": "good",
     },
     "phi3-mini": {
@@ -36,6 +38,16 @@ MODEL_CONFIGS = {
         "name": "Phi-3-Mini-4K-Instruct",
         "context_length": 4096,
         "max_tokens": 1024,
+        "max_context_chars": 2500,  # Janela maior, melhor compreensao
+        "quality": "excellent",
+    },
+    "mistral-7b": {
+        "type": "gguf",
+        "path": "./models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
+        "name": "Mistral-7B-Instruct",
+        "context_length": 4096,
+        "max_tokens": 1024,
+        "max_context_chars": 3000,  # Janela grande, modelo robusto
         "quality": "excellent",
     },
     "gpt2-portuguese": {
@@ -44,12 +56,13 @@ MODEL_CONFIGS = {
         "name": "GPT-2 Small Portuguese",
         "context_length": 1024,
         "max_tokens": 500,
+        "max_context_chars": 500,  # Muito limitado
         "quality": "basic",
     },
 }
 
 # Ordem de preferencia
-MODEL_PRIORITY = ["tinyllama", "phi3-mini", "gpt2-portuguese"]
+MODEL_PRIORITY = ["tinyllama", "phi3-mini", "mistral-7b", "gpt2-portuguese"]
 
 
 def check_llama_cpp_available() -> bool:
@@ -164,6 +177,7 @@ class SmartGenerator(ResponseGenerator):
                 path=config["path"],
                 context_length=config["context_length"],
                 max_tokens=config["max_tokens"],
+                max_context_chars=config.get("max_context_chars", 800),
             )
             return GGUFGenerator(model_config=gguf_config)
         

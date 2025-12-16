@@ -30,6 +30,12 @@ class GGUFModelConfig:
     top_p: float = 0.95
     repeat_penalty: float = 1.1
     
+    # Limite de caracteres de contexto do documento
+    # Este valor controla quanto do documento e enviado ao modelo
+    # Valores maiores = mais contexto = respostas potencialmente melhores
+    # Mas deve respeitar o limite de tokens do modelo
+    max_context_chars: int = 800
+    
     # Configuracoes de hardware
     n_gpu_layers: int = 0  # 0 = CPU only
     n_threads: Optional[int] = None  # None = auto
@@ -44,10 +50,13 @@ class GGUFModelConfig:
             "description": self.description,
             "context_length": self.context_length,
             "max_tokens": self.max_tokens,
+            "max_context_chars": self.max_context_chars,
         }
 
 
 # Configuracoes pre-definidas para modelos populares
+# max_context_chars: controla quanto do documento e enviado ao modelo
+# Valores recomendados baseados em testes de qualidade vs performance
 PREDEFINED_MODELS = {
     "tinyllama": GGUFModelConfig(
         name="TinyLlama-1.1B-Chat",
@@ -55,6 +64,7 @@ PREDEFINED_MODELS = {
         description="TinyLlama 1.1B - Leve e rapido, bom para Q&A basico",
         context_length=2048,
         max_tokens=512,
+        max_context_chars=700,  # Modelo pequeno, janela limitada de 2048 tokens
         prompt_template="chatml",
     ),
     "phi3-mini": GGUFModelConfig(
@@ -63,6 +73,7 @@ PREDEFINED_MODELS = {
         description="Phi-3 Mini - Excelente qualidade, requer mais RAM",
         context_length=4096,
         max_tokens=1024,
+        max_context_chars=2500,  # Janela maior, melhor compreensao
         prompt_template="chatml",
     ),
     "mistral-7b": GGUFModelConfig(
@@ -71,6 +82,7 @@ PREDEFINED_MODELS = {
         description="Mistral 7B - Alta qualidade, requer 8GB+ RAM",
         context_length=4096,
         max_tokens=1024,
+        max_context_chars=3000,  # Janela grande, modelo robusto
         prompt_template="llama",
     ),
 }
@@ -245,19 +257,16 @@ class GGUFGenerator(ResponseGenerator):
         """
         self.ensure_initialized()
         
-        # Estima limite de caracteres para o contexto
-        # TinyLlama tem janela de 2048 tokens
-        # Reserva: 512 para resposta, 300 para prompt/formatação, 100 para query
-        # Margem adicional de segurança: 200 tokens
-        # Português: ~1 token por caractere  
-        # Limite fixo conservador para garantir funcionamento
-        max_context_chars = min(600, self.config.context_length - self.config.max_tokens - 700)
+        # Usa o limite de caracteres configurado para o modelo
+        # Este valor e definido em GGUFModelConfig.max_context_chars
+        # e pode ser ajustado via config.yaml para cada modelo
+        max_context_chars = self.config.max_context_chars
         
         # Trunca contexto se muito grande
         truncated_context = context
         if len(context) > max_context_chars:
             truncated_context = context[:max_context_chars] + "\n...[truncado]"
-            logger.info(f"Contexto truncado de {len(context)} para {len(truncated_context)} caracteres")
+            logger.info(f"Contexto truncado de {len(context)} para {max_context_chars} caracteres")
         
         # Formata prompt com contexto possivelmente truncado
         prompt = self._format_prompt(query, truncated_context, system_prompt)
