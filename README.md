@@ -370,32 +370,43 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 ### Baixar Llama 3.1 8B (Recomendado para Portugues)
 
 ```powershell
-# Baixar o modelo automaticamente
+# PowerShell - Baixar o modelo automaticamente
 .\scripts\download_models.ps1 -Model llama3
+```
 
+```batch
+REM Prompt de Comando (CMD)
+scripts\download_models.cmd llama3
+```
+
+```powershell
 # Usar o modelo
 python run.py qa documento.pdf -q "sua pergunta" --model llama3-8b
 ```
 
 ### Ativar TinyLlama (Recursos Limitados)
 
-O modelo TinyLlama ja esta incluso no repositorio. Para ativa-lo:
+O modelo TinyLlama já está incluso no repositório. O wheel `llama-cpp-python` também já está incluso e é instalado automaticamente durante a instalação offline.
+
+Se precisar reinstalar manualmente:
 
 ```powershell
-# Executar script de instalacao
+# PowerShell
 .\scripts\install_llama_cpp.ps1
-
-# OU instalar manualmente
-pip install llama-cpp-python
 ```
 
-**Nota:** Requer Visual Studio Build Tools para compilar.
-Se a instalacao falhar, o sistema usa GPT-2 automaticamente.
+```batch
+REM Prompt de Comando (CMD)
+scripts\install_llama_cpp.cmd
+```
+
+> **Nota:** O wheel pré-compilado já está incluso - **não é necessário compilador C++**.
 
 ### Baixar Modelos Adicionais (Phi-3 ou Mistral)
 
 Para melhor qualidade de respostas:
 
+**PowerShell:**
 ```powershell
 # Baixar todos os modelos
 .\scripts\download_models.ps1
@@ -405,6 +416,18 @@ Para melhor qualidade de respostas:
 
 # Apenas Mistral 7B (4.1 GB)
 .\scripts\download_models.ps1 -Model mistral
+```
+
+**Prompt de Comando (CMD):**
+```batch
+REM Baixar todos os modelos
+scripts\download_models.cmd all
+
+REM Apenas Phi-3 Mini (2.3 GB)
+scripts\download_models.cmd phi3
+
+REM Apenas Mistral 7B (4.1 GB)
+scripts\download_models.cmd mistral
 ```
 
 ### Verificar e Usar Modelos
@@ -1666,7 +1689,7 @@ Este aplicativo foi projetado para funcionar **100% offline** em ambientes corpo
 |-----------|--------|---------|
 | Sem internet | ✅ | Todos os pacotes inclusos em `wheels/` |
 | Sem scripts .ps1 | ✅ | Alternativas `.cmd` disponíveis |
-| Sem compilador C++ | ✅ | Wheel pré-compilado `llama_cpp_python*.whl` incluso |
+| Sem compilador C++ | ✅ | Wheel pré-compilado `llama_cpp_python*.whl` já incluso em `wheels/` |
 | Proxy restritivo | ✅ | Modo OFFLINE bloqueia conexões de rede |
 | Auditoria de código | ✅ | Todo código-fonte disponível, sem dependências de rede |
 

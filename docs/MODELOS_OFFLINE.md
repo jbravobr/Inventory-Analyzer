@@ -24,7 +24,7 @@ Este documento explica como configurar e utilizar diferentes modelos de linguage
 | Mistral 7B | Disponivel | Download (~4 GB) - Alternativa |
 | TinyLlama GGUF | JA INCLUSO | Nenhuma (para recursos limitados) |
 | GPT-2 Portuguese | JA INCLUSO | Nenhuma (fallback) |
-| llama-cpp-python | **REQUER INSTALACAO** | Executar script de instalacao |
+| llama-cpp-python | **JA INCLUSO** | Nenhuma (wheel pre-compilado em `wheels/`) |
 
 ---
 
@@ -36,8 +36,16 @@ O Llama 3.1 8B oferece a melhor qualidade para portugues brasileiro.
 ```powershell
 # Download automatico
 .\scripts\download_models.ps1 -Model llama3
+```
 
-# OU download manual
+**Prompt de Comando (CMD):**
+```batch
+REM Download automatico
+scripts\download_models.cmd llama3
+```
+
+**Download manual (PowerShell):**
+```powershell
 Invoke-WebRequest -Uri "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf" -OutFile "models\generator\Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
 ```
 
@@ -55,7 +63,9 @@ python run.py qa documento.pdf -q "sua pergunta" --model llama3-8b
 
 ## Ativar TinyLlama (Recursos Limitados)
 
-O modelo TinyLlama ja esta baixado. Para ativa-lo, execute:
+O modelo TinyLlama ja esta baixado e o wheel `llama-cpp-python` **ja esta incluso** na pasta `wheels/`. A instalacao offline (`install_offline.cmd` ou `install_offline.ps1`) instala automaticamente.
+
+Se precisar reinstalar manualmente:
 
 **PowerShell:**
 ```powershell
@@ -67,13 +77,7 @@ O modelo TinyLlama ja esta baixado. Para ativa-lo, execute:
 scripts\install_llama_cpp.cmd
 ```
 
-**Ou manualmente:**
-```bash
-pip install llama-cpp-python
-```
-
-**Nota:** Requer compilador C++ (Visual Studio Build Tools).
-Se a instalacao falhar, o sistema usa GPT-2 Portuguese automaticamente.
+> **Nota:** O wheel pre-compilado ja esta incluso - **nao e necessario compilador C++**.
 
 ### Verificar Status
 
@@ -116,16 +120,19 @@ wget -P models/generator/ "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v
 
 ### Passo 2: Instalar llama-cpp-python
 
-**Com internet:**
-```bash
-pip install llama-cpp-python
+O wheel **ja esta incluso** na pasta `wheels/` e e instalado automaticamente pelo `install_offline.cmd`.
+
+Se precisar reinstalar:
+
+**PowerShell:**
+```powershell
+.\scripts\install_llama_cpp.ps1
 ```
 
-**Offline (baixar wheel primeiro):**
-1. Acesse: https://github.com/abetlen/llama-cpp-python/releases
-2. Baixe wheel para Windows: `llama_cpp_python-*-cp311-cp311-win_amd64.whl`
-3. Coloque em `wheels/`
-4. Instale: `pip install wheels/llama_cpp_python-*.whl`
+**CMD:**
+```cmd
+scripts\install_llama_cpp.cmd
+```
 
 ### Passo 3: Verificar
 
@@ -490,49 +497,52 @@ python run.py qa doc.pdf -q "pergunta" --model tinyllama 2>&1 | grep -i "truncad
 
 ---
 
-## Script de Download de Modelos
+## Scripts de Download de Modelos
 
-Crie o arquivo `scripts/download_models.ps1`:
+Os scripts de download estao disponiveis em `scripts/`:
+
+### PowerShell
 
 ```powershell
-# Download de modelos adicionais
-# Execute: .\scripts\download_models.ps1
-
-param(
-    [string]$Model = "all"
-)
-
-$modelsDir = "models\generator"
-
-# Phi-3 Mini
-if ($Model -eq "all" -or $Model -eq "phi3") {
-    Write-Host "Baixando Phi-3 Mini (~2.3 GB)..." -ForegroundColor Cyan
-    $phi3Url = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf"
-    Invoke-WebRequest -Uri $phi3Url -OutFile "$modelsDir\Phi-3-mini-4k-instruct-q4.gguf"
-    Write-Host "Phi-3 Mini baixado!" -ForegroundColor Green
-}
-
-# Mistral 7B
-if ($Model -eq "all" -or $Model -eq "mistral") {
-    Write-Host "Baixando Mistral 7B (~4.1 GB)..." -ForegroundColor Cyan
-    $mistralUrl = "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
-    Invoke-WebRequest -Uri $mistralUrl -OutFile "$modelsDir\mistral-7b-instruct-v0.2.Q4_K_M.gguf"
-    Write-Host "Mistral 7B baixado!" -ForegroundColor Green
-}
-
-Write-Host "`nVerifique os modelos com: python run.py models --check" -ForegroundColor Yellow
-```
-
-**Uso:**
-```powershell
-# Baixar todos
+# Baixar todos os modelos
 .\scripts\download_models.ps1
 
-# Apenas Phi-3
+# Apenas Llama 3.1 (RECOMENDADO)
+.\scripts\download_models.ps1 -Model llama3
+
+# Apenas TinyLlama
+.\scripts\download_models.ps1 -Model tinyllama
+
+# Apenas Phi-3 Mini
 .\scripts\download_models.ps1 -Model phi3
 
 # Apenas Mistral
 .\scripts\download_models.ps1 -Model mistral
+```
+
+### Prompt de Comando (CMD)
+
+```batch
+REM Baixar todos os modelos
+scripts\download_models.cmd all
+
+REM Apenas Llama 3.1 (RECOMENDADO)
+scripts\download_models.cmd llama3
+
+REM Apenas TinyLlama
+scripts\download_models.cmd tinyllama
+
+REM Apenas Phi-3 Mini
+scripts\download_models.cmd phi3
+
+REM Apenas Mistral
+scripts\download_models.cmd mistral
+```
+
+### Verificar Modelos
+
+```bash
+python run.py models --check
 ```
 
 ---
