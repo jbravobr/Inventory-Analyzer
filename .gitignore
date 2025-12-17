@@ -41,3 +41,6 @@ Desktop.ini
 *.pdf
 *.docx
 *.txt
+
+# Models files
+*.gguf
