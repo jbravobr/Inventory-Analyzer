@@ -66,8 +66,8 @@ PREDEFINED_MODELS = {
         path="./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
         description="TinyLlama 1.1B - Leve e rapido, bom para Q&A basico",
         context_length=2048,
-        max_tokens=256,  # Reduzido de 512 para dar mais espaço ao contexto
-        max_context_chars=800,  # Contexto controlado para caber no prompt total
+        max_tokens=512,  # Aumentado para respostas mais completas
+        max_context_chars=500,  # Contexto conservador para balancear com resposta
         prompt_template="chatml",
     ),
     "phi3-mini": GGUFModelConfig(
@@ -87,6 +87,15 @@ PREDEFINED_MODELS = {
         max_tokens=1024,
         max_context_chars=3000,  # Janela grande, modelo robusto
         prompt_template="llama",
+    ),
+    "llama3-8b": GGUFModelConfig(
+        name="Llama-3.1-8B-Instruct",
+        path="./models/generator/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+        description="Llama 3.1 8B - Melhor para portugues, requer 8GB+ RAM",
+        context_length=8192,  # Suporta ate 128K, mas 8K e suficiente
+        max_tokens=1024,
+        max_context_chars=4000,  # 8x mais contexto que TinyLlama
+        prompt_template="llama3",  # Formato especifico do Llama 3
     ),
 }
 
@@ -229,6 +238,19 @@ class GGUFGenerator(ResponseGenerator):
                 f"Contexto:\n{context}\n\n"
                 f"Pergunta: {query}\n\n"
                 f"### Response:\n"
+            )
+        
+        elif self.config.prompt_template == "llama3":
+            # Formato Llama 3 / Llama 3.1 (oficial)
+            # Ref: https://llama.meta.com/docs/model-cards-and-prompt-formats/meta-llama-3/
+            return (
+                f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+                f"{system_prompt}<|eot_id|>"
+                f"<|start_header_id|>user<|end_header_id|>\n\n"
+                f"Com base no contexto abaixo, responda a pergunta.\n\n"
+                f"CONTEXTO:\n{context}\n\n"
+                f"PERGUNTA: {query}<|eot_id|>"
+                f"<|start_header_id|>assistant<|end_header_id|>\n\n"
             )
         
         else:

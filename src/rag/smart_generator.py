@@ -2,8 +2,10 @@
 Gerador Inteligente de Respostas.
 
 Seleciona automaticamente o melhor modelo disponivel:
-1. TinyLlama GGUF (se llama-cpp-python instalado e modelo existe)
-2. GPT-2 Portuguese (fallback)
+1. Llama 3.1 8B (MELHOR para portugues)
+2. Mistral 7B (alternativa de qualidade)
+3. TinyLlama (para recursos limitados)
+4. GPT-2 Portuguese (fallback)
 
 O usuario nao precisa se preocupar com qual modelo esta disponivel,
 o sistema escolhe automaticamente.
@@ -28,8 +30,8 @@ MODEL_CONFIGS = {
         "path": "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
         "name": "TinyLlama-1.1B-Chat",
         "context_length": 2048,
-        "max_tokens": 256,  # Reduzido para dar mais espaço ao prompt
-        "max_context_chars": 500,  # Contexto conservador para caber no prompt total
+        "max_tokens": 512,  # Aumentado para respostas mais completas
+        "max_context_chars": 500,  # Contexto conservador para balancear com resposta
         "quality": "good",
     },
     "phi3-mini": {
@@ -50,6 +52,15 @@ MODEL_CONFIGS = {
         "max_context_chars": 3000,  # Janela grande, modelo robusto
         "quality": "excellent",
     },
+    "llama3-8b": {
+        "type": "gguf",
+        "path": "./models/generator/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+        "name": "Llama-3.1-8B-Instruct",
+        "context_length": 8192,  # Suporta ate 128K, mas 8K e suficiente
+        "max_tokens": 1024,
+        "max_context_chars": 4000,  # 8x mais contexto que TinyLlama
+        "quality": "best",  # Melhor qualidade para portugues
+    },
     "gpt2-portuguese": {
         "type": "huggingface",
         "path": "./models/generator/models--pierreguillou--gpt2-small-portuguese/snapshots/89a916c041b54c8b925e1a3282a5a334684280cb",
@@ -61,8 +72,8 @@ MODEL_CONFIGS = {
     },
 }
 
-# Ordem de preferencia
-MODEL_PRIORITY = ["tinyllama", "phi3-mini", "mistral-7b", "gpt2-portuguese"]
+# Ordem de preferencia (llama3-8b primeiro por ser o melhor para portugues)
+MODEL_PRIORITY = ["llama3-8b", "mistral-7b", "phi3-mini", "tinyllama", "gpt2-portuguese"]
 
 
 def check_llama_cpp_available() -> bool:

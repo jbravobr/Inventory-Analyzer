@@ -352,16 +352,29 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 
 ### Status dos Modelos
 
-| Modelo | Tamanho | RAM | Qualidade | max_context_chars | Incluso |
-|--------|---------|-----|-----------|-------------------|---------|
-| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | 1200 | SIM (padrao) |
-| Phi-3-Mini | 2.3 GB | ~6 GB | Excelente | 2500 | Nao |
-| Mistral-7B | 4.1 GB | ~8 GB | Excelente | 3000 | Nao |
-| GPT-2 Portuguese | 500 MB | ~2 GB | Basica | 500 | SIM (fallback) |
+| Modelo | Tamanho | RAM | Qualidade PT-BR | max_context_chars | max_tokens | Incluso |
+|--------|---------|-----|-----------------|-------------------|------------|---------|
+| **Llama-3.1-8B** | 4.7 GB | ~8 GB | ⭐ Excelente | 4000 | 1024 | **RECOMENDADO** |
+| Mistral-7B | 4.1 GB | ~8 GB | Muito Boa | 3000 | 1024 | Nao |
+| TinyLlama-1.1B | 670 MB | ~2 GB | Boa | 500 | 512 | SIM (padrao) |
+| Phi-3-Mini | 2.3 GB | ~6 GB | Limitada | 2500 | 1024 | Nao recomendado |
+| GPT-2 Portuguese | 500 MB | ~2 GB | Basica | 500 | 500 | SIM (fallback) |
 
-> **max_context_chars**: quantidade de caracteres do documento enviados ao modelo. Modelos maiores suportam mais contexto e geram respostas melhores.
+> **Llama 3.1 8B** e o modelo recomendado para portugues brasileiro, com excelente qualidade de respostas.
+> 
+> **max_context_chars**: quantidade de caracteres do documento enviados ao modelo. **max_tokens**: limite de tokens na resposta gerada. Modelos maiores suportam mais contexto e geram respostas melhores.
 
-### Ativar TinyLlama (Recomendado)
+### Baixar Llama 3.1 8B (Recomendado para Portugues)
+
+```powershell
+# Baixar o modelo automaticamente
+.\scripts\download_models.ps1 -Model llama3
+
+# Usar o modelo
+python run.py qa documento.pdf -q "sua pergunta" --model llama3-8b
+```
+
+### Ativar TinyLlama (Recursos Limitados)
 
 O modelo TinyLlama ja esta incluso no repositorio. Para ativa-lo:
 
@@ -1663,7 +1676,7 @@ Aumente o `dpi` no config.yaml para melhor qualidade de OCR.
   - Detecta headers, numeração, palavras-chave
   - Ideal para documentos estruturados (licenças, contratos)
   
-- ⭐ **TinyLlama com mais contexto**: ~1200 caracteres (~1000 tokens)
+- ⭐ **TinyLlama balanceado**: ~500 caracteres de contexto, 512 tokens de resposta
 
 **Melhorias:**
 

@@ -925,6 +925,98 @@ python run.py dkr test domain_rules/licencas_software.rules \
 python run.py qa documento.pdf -q "Qual a diferença entre GPL 2 e 3?" --explain
 ```
 
+## DKR com Diferentes Modelos
+
+O módulo DKR funciona com qualquer modelo de linguagem suportado pelo sistema. No entanto, a **necessidade de regras** varia conforme a qualidade do modelo.
+
+### Comparativo: TinyLlama vs Llama 3.1 8B
+
+| Aspecto | TinyLlama (1.1B) | Llama 3.1 (8B) |
+|---------|------------------|----------------|
+| Qualidade base em PT-BR | ⭐⭐⭐ Boa | ⭐⭐⭐⭐⭐ Excelente |
+| Erros de terminologia | Frequentes | Raros |
+| Alucinações | Comuns | Ocasionais |
+| Necessidade de DKR | **Alta** | **Baixa a Média** |
+| Foco das regras | Correção de erros | Garantia de qualidade |
+
+### Quando usar DKR com Llama 3.1 8B
+
+Mesmo com a excelente qualidade do Llama 3.1 8B, o DKR ainda é útil para:
+
+1. **Padronização de Respostas**: Garantir que termos específicos do domínio sejam usados corretamente.
+
+2. **Conformidade Regulatória**: Em áreas como jurídico, contábil ou compliance onde a precisão é crítica.
+
+3. **Casos de Borda**: Perguntas específicas que o modelo pode interpretar de forma ambígua.
+
+4. **Auditoria**: O flag `--explain` documenta exatamente como a resposta foi validada.
+
+### Exemplo: Regras Simplificadas para Llama 3.1 8B
+
+Com modelos maiores, você pode ter **menos regras** e **mais simples**:
+
+```
+DOMÍNIO: Licenças de Software
+
+FATOS CONHECIDOS:
+
+A licença AGPL-3.0 tem criticidade ALTO.
+A licença MIT tem criticidade BAIXO.
+A licença Apache-2.0 tem criticidade BAIXO.
+
+# Menos regras de validação necessárias
+# O modelo já acerta na maioria dos casos
+
+VALIDAR RESPOSTAS:
+
+# Apenas regras críticas para conformidade
+Regra compliance_001:
+  Se a resposta mencionar "AGPL" sem alertar sobre SaaS
+  E o contexto contiver "AGPL"
+  Então adicionar: "ATENÇÃO: AGPL exige disponibilização de código em uso SaaS."
+```
+
+### Quando usar DKR com TinyLlama
+
+Com modelos menores como TinyLlama, o DKR é **essencial** para:
+
+1. **Correção de Terminologia**: TinyLlama frequentemente confunde termos similares (ex: "GPL" vs "GPLA").
+
+2. **Inversão de Criticidade**: Pode classificar erroneamente licenças seguras como críticas.
+
+3. **Respostas Incompletas**: Devido à janela de contexto limitada.
+
+4. **Normalização de Termos**: Corrigir alucinações e termos inventados.
+
+### Recomendações Práticas
+
+| Modelo | Estratégia DKR |
+|--------|----------------|
+| **Llama 3.1 8B** | Regras mínimas focadas em conformidade e padronização |
+| **Mistral 7B** | Regras moderadas com foco em casos específicos do domínio |
+| **TinyLlama** | Regras extensivas com correções, normalizações e validações |
+| **GPT-2 Portuguese** | DKR essencial - muitas regras de correção necessárias |
+
+### Usando o Flag --explain
+
+Independente do modelo, use `--explain` para auditoria:
+
+```bash
+# Com Llama 3.1 8B - verificar conformidade
+python run.py qa documento.pdf -q "Licença mais crítica?" --model llama3-8b --explain
+
+# Com TinyLlama - verificar correções
+python run.py qa documento.pdf -q "Licença mais crítica?" --model tinyllama --explain
+```
+
+A saída mostra:
+- Se houve expansão de query
+- Se houve normalização de termos
+- Se regras foram ativadas
+- Se a resposta foi corrigida
+
+---
+
 ## Troubleshooting
 
 ### DKR não está carregando

@@ -1532,17 +1532,28 @@ def models_cmd(list_models: bool, model_name: Optional[str], check: bool):
     
     printer.print_banner("DOCUMENT ANALYZER", "Gerenciador de Modelos")
     
-    # Modelos disponiveis
+    # Modelos disponiveis (ordenados por qualidade PT-BR)
     all_models = [
         {
-            "id": "gpt2-portuguese",
-            "name": "GPT-2 Small Portuguese",
-            "type": "huggingface",
-            "size": "~500 MB",
-            "ram": "~2 GB",
-            "quality": "Basico",
-            "path": "./models/generator/models--pierreguillou--gpt2-small-portuguese",
-            "description": "Modelo leve, qualidade limitada para Q&A"
+            "id": "llama3-8b",
+            "name": "Llama-3.1-8B-Instruct",
+            "type": "gguf",
+            "size": "~4.7 GB",
+            "ram": "~8 GB",
+            "quality": "Excelente PT-BR",
+            "path": "./models/generator/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+            "description": "MELHOR para portugues brasileiro (RECOMENDADO)",
+            "default": True
+        },
+        {
+            "id": "mistral-7b",
+            "name": "Mistral-7B-Instruct",
+            "type": "gguf",
+            "size": "~4 GB",
+            "ram": "~8 GB",
+            "quality": "Muito Bom",
+            "path": "./models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
+            "description": "Alternativa de alta qualidade"
         },
         {
             "id": "tinyllama",
@@ -1552,8 +1563,7 @@ def models_cmd(list_models: bool, model_name: Optional[str], check: bool):
             "ram": "~2 GB",
             "quality": "Bom",
             "path": "./models/generator/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
-            "description": "Equilibrio entre tamanho e qualidade (RECOMENDADO)",
-            "default": True
+            "description": "Para recursos limitados (~2 GB RAM)"
         },
         {
             "id": "phi3-mini",
@@ -1561,19 +1571,19 @@ def models_cmd(list_models: bool, model_name: Optional[str], check: bool):
             "type": "gguf",
             "size": "~2.3 GB",
             "ram": "~6 GB",
-            "quality": "Excelente",
+            "quality": "Limitado PT-BR",
             "path": "./models/generator/Phi-3-mini-4k-instruct-q4.gguf",
-            "description": "Alta qualidade, requer mais recursos"
+            "description": "NAO recomendado para portugues"
         },
         {
-            "id": "mistral-7b",
-            "name": "Mistral-7B-Instruct",
-            "type": "gguf",
-            "size": "~4 GB",
-            "ram": "~8 GB",
-            "quality": "Excelente",
-            "path": "./models/generator/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
-            "description": "Melhor qualidade, requer hardware potente"
+            "id": "gpt2-portuguese",
+            "name": "GPT-2 Small Portuguese",
+            "type": "huggingface",
+            "size": "~500 MB",
+            "ram": "~2 GB",
+            "quality": "Basico",
+            "path": "./models/generator/models--pierreguillou--gpt2-small-portuguese",
+            "description": "Fallback apenas"
         },
     ]
     

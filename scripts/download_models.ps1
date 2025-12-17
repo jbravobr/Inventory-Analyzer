@@ -2,12 +2,13 @@
 # Execute: .\scripts\download_models.ps1
 # 
 # Uso:
-#   .\scripts\download_models.ps1              # Baixa todos
-#   .\scripts\download_models.ps1 -Model phi3   # Apenas Phi-3
+#   .\scripts\download_models.ps1                # Baixa todos
+#   .\scripts\download_models.ps1 -Model llama3  # Apenas Llama 3.1 (RECOMENDADO)
 #   .\scripts\download_models.ps1 -Model mistral # Apenas Mistral
+#   .\scripts\download_models.ps1 -Model tinyllama # Apenas TinyLlama
 
 param(
-    [ValidateSet("all", "phi3", "mistral", "tinyllama")]
+    [ValidateSet("all", "llama3", "phi3", "mistral", "tinyllama")]
     [string]$Model = "all"
 )
 
@@ -29,7 +30,25 @@ Write-Host "  Download de Modelos GGUF" -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 Write-Host ""
 
-# TinyLlama (padrao, ja incluso no repo)
+# Llama 3.1 8B (RECOMENDADO para portugues)
+if ($Model -eq "all" -or $Model -eq "llama3") {
+    $llama3File = "$modelsDir\Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    if (Test-Path $llama3File) {
+        Write-Host "[OK] Llama 3.1 8B ja esta presente" -ForegroundColor Green
+    } else {
+        Write-Host "[>>] Baixando Llama 3.1 8B (~4.7 GB) - MELHOR para Portugues..." -ForegroundColor Yellow
+        Write-Host "     Isso pode levar varios minutos..." -ForegroundColor Gray
+        $llama3Url = "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+        try {
+            Invoke-WebRequest -Uri $llama3Url -OutFile $llama3File -UseBasicParsing
+            Write-Host "[OK] Llama 3.1 8B baixado com sucesso!" -ForegroundColor Green
+        } catch {
+            Write-Host "[ERRO] Falha ao baixar Llama 3.1 8B: $_" -ForegroundColor Red
+        }
+    }
+}
+
+# TinyLlama (para recursos limitados)
 if ($Model -eq "all" -or $Model -eq "tinyllama") {
     $tinyllamaFile = "$modelsDir\tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
     if (Test-Path $tinyllamaFile) {
@@ -46,7 +65,7 @@ if ($Model -eq "all" -or $Model -eq "tinyllama") {
     }
 }
 
-# Phi-3 Mini
+# Phi-3 Mini (NAO recomendado para portugues)
 if ($Model -eq "all" -or $Model -eq "phi3") {
     $phi3File = "$modelsDir\Phi-3-mini-4k-instruct-q4.gguf"
     if (Test-Path $phi3File) {
@@ -91,8 +110,10 @@ Write-Host "Verifique os modelos instalados com:" -ForegroundColor Yellow
 Write-Host "  python run.py models --check" -ForegroundColor White
 Write-Host ""
 Write-Host "Para usar um modelo especifico:" -ForegroundColor Yellow
-Write-Host "  python run.py qa doc.pdf -q 'pergunta' --model tinyllama" -ForegroundColor White
-Write-Host "  python run.py qa doc.pdf -q 'pergunta' --model phi3-mini" -ForegroundColor White
-Write-Host "  python run.py qa doc.pdf -q 'pergunta' --model mistral-7b" -ForegroundColor White
+Write-Host "  python run.py qa doc.pdf -q 'pergunta' --model llama3-8b   # MELHOR para PT-BR" -ForegroundColor Green
+Write-Host "  python run.py qa doc.pdf -q 'pergunta' --model mistral-7b  # Alternativa" -ForegroundColor White
+Write-Host "  python run.py qa doc.pdf -q 'pergunta' --model tinyllama   # Recursos limitados" -ForegroundColor White
+Write-Host ""
+Write-Host "NOTA: O Llama 3.1 8B e recomendado para melhor qualidade em portugues." -ForegroundColor Cyan
 Write-Host ""
 

@@ -71,7 +71,7 @@ python run.py qa <pdf_path> [opcoes]
 | `-t, --template` | Nome do template a usar |
 | `-o, --output` | Arquivo para exportar conversa |
 | `--save-txt` | Salva resposta em arquivo TXT |
-| `--model` | Modelo de linguagem (tinyllama, phi3-mini, gpt2-portuguese) |
+| `--model` | Modelo de linguagem (llama3-8b, mistral-7b, tinyllama, phi3-mini, gpt2-portuguese) |
 | `--no-cache` | Desabilita cache de respostas |
 | `--no-ocr-cache` | Desabilita cache de OCR |
 | `--list-templates` | Lista templates disponiveis |
@@ -110,14 +110,15 @@ O sistema suporta multiplos modelos de linguagem para geracao de respostas.
 
 ### Modelos Disponiveis
 
-| Modelo | ID | RAM | Qualidade | Velocidade | Contexto |
-|--------|-----|-----|-----------|------------|----------|
-| TinyLlama-1.1B | `tinyllama` | ~2 GB | Boa | Rapido | ~1200 chars |
-| Phi-3-Mini | `phi3-mini` | ~6 GB | Excelente | Media | ~2500 chars |
-| Mistral-7B | `mistral-7b` | ~8 GB | Excelente | Lento | ~3000 chars |
-| GPT-2 Portuguese | `gpt2-portuguese` | ~2 GB | Basica | Rapido | ~500 chars |
+| Modelo | ID | RAM | Qualidade PT-BR | Velocidade | Contexto | Resposta |
+|--------|-----|-----|-----------------|------------|----------|----------|
+| **Llama-3.1-8B** | `llama3-8b` | ~8 GB | ⭐ Excelente | Media | ~4000 chars | 1024 tokens |
+| Mistral-7B | `mistral-7b` | ~8 GB | Muito Boa | Lento | ~3000 chars | 1024 tokens |
+| TinyLlama-1.1B | `tinyllama` | ~2 GB | Boa | Rapido | ~500 chars | 512 tokens |
+| Phi-3-Mini | `phi3-mini` | ~6 GB | Limitada | Media | ~2500 chars | 1024 tokens |
+| GPT-2 Portuguese | `gpt2-portuguese` | ~2 GB | Basica | Rapido | ~500 chars | 500 tokens |
 
-> **Nota**: O TinyLlama agora suporta ~1200 caracteres de contexto (~1000 tokens), melhorando significativamente a qualidade das respostas.
+> **Recomendado**: O **Llama 3.1 8B** oferece a melhor qualidade para português brasileiro. Use TinyLlama para recursos limitados.
 
 ### Como Usar
 
@@ -297,7 +298,8 @@ rag:
   generation:
     models:
       tinyllama:
-        max_context_chars: 1200    # ⭐ ~1000 tokens de contexto
+        max_context_chars: 500     # Contexto balanceado
+        max_tokens: 512            # Respostas completas
 ```
 
 ### Opções de Configuração

@@ -4,20 +4,56 @@ Este documento explica como configurar e utilizar diferentes modelos de linguage
 
 ---
 
+## Comparativo de Modelos
+
+| Modelo | Tamanho | RAM | Qualidade PT-BR | Recomendacao |
+|--------|---------|-----|-----------------|--------------|
+| **Llama 3.1 8B** | ~4.7 GB | ~8 GB | ⭐⭐⭐⭐⭐ Excelente | **MELHOR para Portugues** |
+| Mistral 7B | ~4 GB | ~8 GB | ⭐⭐⭐⭐ Muito Boa | Alternativa de qualidade |
+| TinyLlama 1.1B | ~670 MB | ~2 GB | ⭐⭐⭐ Boa | Recursos limitados |
+| Phi-3 Mini | ~2.3 GB | ~6 GB | ⭐⭐ Limitada | Nao recomendado para PT-BR |
+| GPT-2 Portuguese | ~500 MB | ~1 GB | ⭐ Basica | Fallback apenas |
+
+---
+
 ## Status Atual do Repositorio
 
 | Componente | Status | Acao Necessaria |
 |------------|--------|-----------------|
-| GPT-2 Portuguese | JA INCLUSO | Nenhuma |
-| TinyLlama GGUF | JA INCLUSO | Nenhuma (modelo de ~670 MB incluso) |
+| Llama 3.1 8B | **RECOMENDADO** | Download (~4.7 GB) - Melhor para portugues |
+| Mistral 7B | Disponivel | Download (~4 GB) - Alternativa |
+| TinyLlama GGUF | JA INCLUSO | Nenhuma (para recursos limitados) |
+| GPT-2 Portuguese | JA INCLUSO | Nenhuma (fallback) |
 | llama-cpp-python | **REQUER INSTALACAO** | Executar script de instalacao |
-
-**O modelo TinyLlama ja esta no repositorio!**
-**Para usa-lo, basta instalar o llama-cpp-python.**
 
 ---
 
-## Ativar TinyLlama (Recomendado)
+## Baixar Llama 3.1 8B (RECOMENDADO para Portugues)
+
+O Llama 3.1 8B oferece a melhor qualidade para portugues brasileiro.
+
+**PowerShell:**
+```powershell
+# Download automatico
+.\scripts\download_models.ps1 -Model llama3
+
+# OU download manual
+Invoke-WebRequest -Uri "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf" -OutFile "models\generator\Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+```
+
+**Linux/Mac:**
+```bash
+wget -P models/generator/ "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+```
+
+**Usar o modelo:**
+```powershell
+python run.py qa documento.pdf -q "sua pergunta" --model llama3-8b
+```
+
+---
+
+## Ativar TinyLlama (Recursos Limitados)
 
 O modelo TinyLlama ja esta baixado. Para ativa-lo, execute:
 
@@ -303,11 +339,13 @@ consulta juridica.
 
 | Caso de Uso | Modelo Recomendado | Motivo |
 |-------------|-------------------|--------|
-| Desktop comum | TinyLlama | Equilibrio |
-| Laptop basico | GPT-2 Portuguese | Menor consumo |
-| Servidor | Phi-3 Mini ou Mistral | Melhor qualidade |
+| **Portugues (melhor qualidade)** | **Llama 3.1 8B** | Excelente suporte PT-BR |
+| Servidor de producao | Llama 3.1 8B ou Mistral | Qualidade e confiabilidade |
+| Desktop comum (~8 GB RAM) | Mistral 7B | Equilibrio qualidade/recursos |
+| Laptop/PC limitado (~2 GB RAM) | TinyLlama | Menor consumo |
+| Fallback garantido | GPT-2 Portuguese | Sempre funciona |
 | Respostas rapidas | TinyLlama | Velocidade |
-| Analises detalhadas | Phi-3 Mini | Qualidade |
+| Analises detalhadas em PT-BR | **Llama 3.1 8B** | Melhor compreensao |
 
 ---
 
@@ -319,11 +357,12 @@ models/
 │   └── models--neuralmind--bert-base-portuguese-cased/
 │       └── ...
 └── generator/
-    ├── tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf     # GGUF
-    ├── Phi-3-mini-4k-instruct-q4.gguf            # GGUF
-    ├── mistral-7b-instruct-v0.2.Q4_K_M.gguf     # GGUF
+    ├── Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf   # GGUF (RECOMENDADO)
+    ├── mistral-7b-instruct-v0.2.Q4_K_M.gguf     # GGUF (alternativa)
+    ├── tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf     # GGUF (recursos limitados)
+    ├── Phi-3-mini-4k-instruct-q4.gguf           # GGUF (nao recomendado)
     └── models--pierreguillou--gpt2-small-portuguese/
-        └── ...                                    # HuggingFace
+        └── ...                                   # HuggingFace (fallback)
 ```
 
 ---
@@ -362,19 +401,21 @@ models/
 
 | Modelo | Arquivo | Tamanho | RAM | Contexto | Tempo/Resposta |
 |--------|---------|---------|-----|----------|----------------|
+| **Llama 3.1 8B** | `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf` | 4.7 GB | 8 GB | 8192 | 20-40s |
+| Mistral 7B | `mistral-7b-instruct-v0.2.Q4_K_M.gguf` | 4.1 GB | 8 GB | 4096 | 30-60s |
 | TinyLlama 1.1B | `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf` | 670 MB | 2 GB | 2048 | 5-15s |
 | Phi-3 Mini | `Phi-3-mini-4k-instruct-q4.gguf` | 2.3 GB | 6 GB | 4096 | 15-30s |
-| Mistral 7B | `mistral-7b-instruct-v0.2.Q4_K_M.gguf` | 4.1 GB | 8 GB | 4096 | 30-60s |
 | GPT-2 Port. | (ja incluso) | 500 MB | 2 GB | 1024 | 3-8s |
 
 ### Qualidade de Respostas
 
 | Modelo | Portugues | Contexto Longo | Instrucoes Complexas | Recomendado Para |
 |--------|-----------|----------------|---------------------|------------------|
-| TinyLlama | Bom | Limitado | Basico | Uso geral |
-| Phi-3 Mini | Muito Bom | Bom | Excelente | Analises detalhadas |
-| Mistral 7B | Excelente | Excelente | Excelente | Maxima qualidade |
-| GPT-2 Port. | Basico | Muito Limitado | Basico | Fallback |
+| **Llama 3.1 8B** | ⭐⭐⭐⭐⭐ Excelente | ⭐⭐⭐⭐⭐ Excelente | ⭐⭐⭐⭐⭐ Excelente | **PT-BR, analises** |
+| Mistral 7B | ⭐⭐⭐⭐ Muito Bom | ⭐⭐⭐⭐ Excelente | ⭐⭐⭐⭐ Excelente | Alternativa |
+| TinyLlama | ⭐⭐⭐ Bom | ⭐⭐ Limitado | ⭐⭐ Basico | Recursos limitados |
+| Phi-3 Mini | ⭐⭐ Limitado | ⭐⭐⭐ Bom | ⭐⭐⭐⭐ Bom | NAO recomendado PT-BR |
+| GPT-2 Port. | ⭐ Basico | ⭐ Muito Limitado | ⭐ Basico | Fallback apenas |
 
 ---
 
@@ -384,12 +425,13 @@ O parametro `max_context_chars` controla a quantidade maxima de caracteres do do
 
 ### Valores Recomendados
 
-| Modelo | max_context_chars | Justificativa |
-|--------|-------------------|---------------|
-| TinyLlama | 1000-1200 | ⭐ **Otimizado** - Janela de 2048 tokens. Configurado para ~1000 tokens de contexto efetivo (~1200 chars PT-BR). |
-| Phi-3 Mini | 2000-3000 | Janela de 4096 tokens permite mais contexto. Melhor compreensao de documentos longos. |
-| Mistral 7B | 2500-3500 | Janela grande e modelo robusto. Consegue processar contextos maiores com qualidade. |
-| GPT-2 Portuguese | 400-600 | Modelo muito limitado. Contextos maiores degradam a qualidade. |
+| Modelo | max_context_chars | max_tokens | Justificativa |
+|--------|-------------------|------------|---------------|
+| **Llama 3.1 8B** | 4000 | 1024 | ⭐ **MELHOR** - Janela enorme (8192 tokens), excelente para PT-BR |
+| Mistral 7B | 3000 | 1024 | Janela grande e modelo robusto. Consegue processar contextos maiores com qualidade. |
+| TinyLlama | 500 | 512 | **Balanceado** - Contexto conservador com respostas completas. Trade-off entre contexto e tamanho da resposta. |
+| Phi-3 Mini | 2500 | 1024 | Janela de 4096 tokens permite mais contexto. NAO recomendado para PT-BR. |
+| GPT-2 Portuguese | 500 | 500 | Modelo muito limitado. Contextos maiores degradam a qualidade. |
 
 ### Como Ajustar
 
@@ -399,13 +441,17 @@ Edite o arquivo `config.yaml`:
 rag:
   generation:
     models:
-      tinyllama:
-        max_context_chars: 1000    # Aumente para mais contexto
+      llama3-8b:
+        max_context_chars: 4000   # Janela grande (8192 tokens)
+        max_tokens: 1024          # Respostas completas
         # ...
-      phi3-mini:
-        max_context_chars: 2500    # Phi-3 aguenta mais
+      tinyllama:
+        max_context_chars: 500    # Contexto conservador
+        max_tokens: 512           # Balanceado com contexto
         # ...
 ```
+
+> **Nota**: O Llama 3.1 8B tem janela de 8192 tokens (ou até 128K em variantes), permitindo muito mais contexto que modelos menores.
 
 ### Impacto na Qualidade
 
@@ -421,11 +467,13 @@ rag:
 
 ### Dica: Ajuste Fino
 
-Se as respostas estao imprecisas, experimente:
+Se as respostas estao imprecisas ou cortadas, experimente:
 
-1. **Aumentar max_context_chars** em 200-500 caracteres
-2. **Testar com a mesma pergunta** para comparar
-3. **Observar logs** para ver se contexto esta sendo truncado
+1. **Respostas cortadas?** Aumente `max_tokens` (ex: 384 → 512)
+2. **Falta contexto?** Aumente `max_context_chars` (mas reduza `max_tokens`)
+3. **Testar com a mesma pergunta** para comparar
+4. **Observar logs** para ver se contexto esta sendo truncado
+5. **Usar modelo maior** (Phi-3 ou Mistral) para perguntas complexas
 
 ```bash
 # Ver logs detalhados
