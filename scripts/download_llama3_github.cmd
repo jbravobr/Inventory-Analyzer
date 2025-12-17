@@ -67,7 +67,7 @@ for %%P in (%PARTS%) do (
         echo [!PART_NUM!/%TOTAL_PARTS%] !PART_FILE! - ja existe, pulando
     ) else (
         echo [!PART_NUM!/%TOTAL_PARTS%] Baixando !PART_FILE!...
-        curl -L -o "!PART_PATH!" "!PART_URL!"
+        curl --ssl-no-revoke -L -o "!PART_PATH!" "!PART_URL!"
         if errorlevel 1 (
             echo.
             echo [ERRO] Falha ao baixar !PART_FILE!
