@@ -125,14 +125,26 @@ class DKREngine:
             result.expanded_query = expansion.expand(question)
             result.expansion_terms = expansion.add_terms
         
-        # 3. Valida e corrige resposta
+        # 3. Normaliza termos na resposta (NOVO)
+        current_answer = answer
+        if self._rules.normalizations:
+            current_answer, normalizations = self._normalize_terms(answer)
+            if normalizations:
+                result.was_normalized = True
+                result.normalizations_applied = normalizations
+                result.answer_after_normalization = current_answer
+                result.final_answer = current_answer
+                logger.debug(f"DKR normalizou {len(normalizations)} termo(s)")
+        
+        # 4. Valida e corrige resposta (usando resposta normalizada)
         if apply_corrections:
-            result = self._validate_and_correct(result, answer)
+            result = self._validate_and_correct(result, current_answer)
         
         result.processing_time_ms = (time.time() - start_time) * 1000
         
         logger.debug(
             f"DKR processado: intent={intent}, "
+            f"normalized={result.was_normalized}, "
             f"corrected={result.was_corrected}, "
             f"time={result.processing_time_ms:.1f}ms"
         )
@@ -298,6 +310,30 @@ class DKREngine:
         
         return None
     
+    def _normalize_terms(self, text: str) -> tuple[str, List[str]]:
+        """
+        Aplica todas as normalizações de termos ao texto.
+        
+        Args:
+            text: Texto a normalizar
+        
+        Returns:
+            Tuple de (texto_normalizado, lista_de_normalizações_aplicadas)
+        """
+        if not self._rules or not self._rules.normalizations:
+            return text, []
+        
+        result = text
+        applied = []
+        
+        for norm in self._rules.normalizations:
+            new_text, was_applied = norm.apply(result)
+            if was_applied:
+                applied.append(str(norm))
+                result = new_text
+        
+        return result, applied
+    
     def expand_query(self, question: str) -> str:
         """
         Expande a query para melhor retrieval.
@@ -333,6 +369,7 @@ class DKREngine:
             },
             "intents": list(self._rules.intents.keys()),
             "rules": len(self._rules.validation_rules),
+            "normalizations": len(self._rules.normalizations),
         }
     
     def explain_intent(self, question: str) -> str:

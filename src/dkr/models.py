@@ -184,6 +184,43 @@ class Synonym:
 
 
 @dataclass
+class TermNormalization:
+    """
+    Normalização de termo (correção de siglas/termos errados).
+    
+    Exemplo:
+        "GPLA" corrigir para: "GPL"
+        "GPLv2" corrigir para: "GPL-2.0"
+    """
+    original: str           # Termo incorreto/variante (ex: "GPLA")
+    normalized: str         # Termo canônico (ex: "GPL")
+    case_sensitive: bool = False  # Se deve respeitar maiúsculas/minúsculas
+    
+    def apply(self, text: str) -> tuple[str, bool]:
+        """
+        Aplica a normalização no texto.
+        
+        Returns:
+            Tuple de (texto_normalizado, foi_aplicado)
+        """
+        import re
+        
+        if self.case_sensitive:
+            if self.original in text:
+                return text.replace(self.original, self.normalized), True
+            return text, False
+        else:
+            # Substituição case-insensitive
+            pattern = re.compile(re.escape(self.original), re.IGNORECASE)
+            new_text, count = pattern.subn(self.normalized, text)
+            return new_text, count > 0
+    
+    def __str__(self) -> str:
+        cs = " [case-sensitive]" if self.case_sensitive else ""
+        return f'"{self.original}" → "{self.normalized}"{cs}'
+
+
+@dataclass
 class CompiledRules:
     """
     Conjunto completo de regras compiladas de um arquivo .rules.
@@ -209,6 +246,9 @@ class CompiledRules:
     # Sinônimos
     synonyms: Dict[str, Synonym] = field(default_factory=dict)
     
+    # Normalizações de termos
+    normalizations: List[TermNormalization] = field(default_factory=list)
+    
     def get_facts_by_criticality(self, level: str) -> List[DomainFact]:
         """Retorna fatos de uma criticidade específica."""
         return self.facts.get(level.upper(), [])
@@ -232,6 +272,7 @@ class CompiledRules:
             "intents_count": len(self.intents),
             "rules_count": len(self.validation_rules),
             "synonyms_count": len(self.synonyms),
+            "normalizations_count": len(self.normalizations),
         }
 
 
@@ -252,6 +293,11 @@ class DKRResult:
     query_expanded: bool = False
     expanded_query: str = ""
     expansion_terms: List[str] = field(default_factory=list)
+    
+    # Normalização
+    was_normalized: bool = False
+    normalizations_applied: List[str] = field(default_factory=list)
+    answer_after_normalization: str = ""
     
     # Validação
     rules_evaluated: int = 0
@@ -274,6 +320,8 @@ class DKRResult:
             "detected_intent": self.detected_intent,
             "intent_confidence": self.intent_confidence,
             "query_expanded": self.query_expanded,
+            "was_normalized": self.was_normalized,
+            "normalizations_applied": self.normalizations_applied,
             "rules_evaluated": self.rules_evaluated,
             "rules_triggered": self.rules_triggered,
             "was_corrected": self.was_corrected,
@@ -294,6 +342,12 @@ class DKRResult:
         
         if self.query_expanded:
             lines.append(f"  Termos adicionados: {self.expansion_terms}")
+        
+        # Normalização
+        lines.append(f"Termos normalizados: {'Sim' if self.was_normalized else 'Não'}")
+        if self.was_normalized:
+            for norm in self.normalizations_applied:
+                lines.append(f"  • {norm}")
         
         lines.extend([
             f"Regras avaliadas: {self.rules_evaluated}",

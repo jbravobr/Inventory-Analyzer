@@ -112,7 +112,44 @@ Para "criticidade_alta", adicionar: "GRAU DE CRITICIDADE", "ALTO"
 Para "criticidade_baixa", adicionar: "GRAU DE CRITICIDADE", "BAIXO"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# SEÇÃO 5: REGRAS DE VALIDAÇÃO
+# SEÇÃO 5: NORMALIZAR TERMOS (Opcional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Normaliza termos incorretos ou variantes na resposta do LLM
+# ANTES de aplicar as regras de validação.
+#
+# Útil para:
+#   - Corrigir alucinações do LLM (siglas inventadas)
+#   - Padronizar variações de termos (GPLv2 → GPL-2.0)
+#   - Corrigir erros de OCR no documento fonte
+#
+# Sintaxe:
+#   "termo_errado" corrigir para: "termo_correto"
+#   "termo_errado" corrigir para: "termo_correto" [case-sensitive]
+#
+# Por padrão, a substituição é case-insensitive.
+# Use [case-sensitive] quando necessário.
+
+─────────────────────────────────────────────────────────────
+NORMALIZAR TERMOS:
+─────────────────────────────────────────────────────────────
+
+# Correções de siglas inexistentes (alucinações do LLM)
+"GPLA" corrigir para: "GPL"
+"AGPLA" corrigir para: "AGPL"
+"LPGL" corrigir para: "LGPL"
+
+# Normalização de versões para formato padrão
+"GPLv2" corrigir para: "GPL-2.0"
+"GPLv3" corrigir para: "GPL-3.0"
+"GPL v2" corrigir para: "GPL-2.0"
+"GPL v3" corrigir para: "GPL-3.0"
+
+# Exemplo com case-sensitive (quando necessário)
+# "mit" corrigir para: "MIT" [case-sensitive]
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SEÇÃO 6: REGRAS DE VALIDAÇÃO
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
 # Regras definem QUANDO e COMO corrigir respostas.
@@ -160,7 +197,7 @@ ENTÃO corrigir para:
   (Resposta corrigida pelo DKR)
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# SEÇÃO 6: SINÔNIMOS (Opcional)
+# SEÇÃO 7: SINÔNIMOS (Opcional)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
 # Define sinônimos para melhorar a detecção de termos.

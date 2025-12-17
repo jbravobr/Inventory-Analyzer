@@ -35,6 +35,7 @@ from .models import (
     ValidationRule,
     QueryExpansion,
     Synonym,
+    TermNormalization,
     CompiledRules,
     RuleAction,
 )
@@ -58,6 +59,7 @@ class DKRParser:
         "intents": r"^PADRÕES\s+DE\s+INTENÇÃO:?\s*$",
         "rules": r"^REGRAS\s+DE\s+VALIDAÇÃO:?\s*$",
         "expansions": r"^EXPANSÃO\s+DE\s+BUSCA:?\s*$",
+        "normalizations": r"^NORMALIZAR\s+TERMOS:?\s*$",
         "synonyms": r"^SINÔNIMOS:?\s*$",
     }
     
@@ -90,6 +92,9 @@ class DKRParser:
     
     # Padrões para expansão
     EXPANSION_PATTERN = r"^Para\s+[\"']?(\w+)[\"']?,?\s+(?:adicionar|buscar):\s*(.+)$"
+    
+    # Padrões para normalização de termos
+    NORMALIZATION_PATTERN = r'^["\'](.+?)["\']\s+corrigir\s+para:\s*["\'](.+?)["\'](?:\s+\[([^\]]+)\])?$'
     
     def __init__(self):
         """Inicializa o parser."""
@@ -126,7 +131,8 @@ class DKRParser:
         logger.info(
             f"Arquivo .rules parseado: {file_path.name} "
             f"({len(rules.validation_rules)} regras, "
-            f"{sum(len(f) for f in rules.facts.values())} fatos)"
+            f"{sum(len(f) for f in rules.facts.values())} fatos, "
+            f"{len(rules.normalizations)} normalizações)"
         )
         
         return rules
@@ -205,6 +211,12 @@ class DKRParser:
                 expansion = self._parse_expansion(stripped)
                 if expansion:
                     rules.expansions[expansion.intent_name] = expansion
+                i += 1
+            
+            elif self._current_section == "normalizations":
+                normalization = self._parse_normalization(stripped)
+                if normalization:
+                    rules.normalizations.append(normalization)
                 i += 1
                 
             else:
@@ -475,6 +487,30 @@ class DKRParser:
             terms = [t.strip() for t in terms_str.split(",")]
         
         return QueryExpansion(intent_name=intent_name, add_terms=terms)
+    
+    def _parse_normalization(self, line: str) -> Optional[TermNormalization]:
+        """
+        Parseia definição de normalização de termo.
+        
+        Formato:
+            "GPLA" corrigir para: "GPL"
+            "GPLv2" corrigir para: "GPL-2.0" [case-sensitive]
+        """
+        match = re.match(self.NORMALIZATION_PATTERN, line, re.IGNORECASE)
+        if not match:
+            return None
+        
+        original = match.group(1).strip()
+        normalized = match.group(2).strip()
+        options = match.group(3) or ""
+        
+        case_sensitive = "case-sensitive" in options.lower()
+        
+        return TermNormalization(
+            original=original,
+            normalized=normalized,
+            case_sensitive=case_sensitive
+        )
     
     def _pattern_to_intent_name(self, pattern: str) -> str:
         """Converte padrão de pergunta em nome de intent."""

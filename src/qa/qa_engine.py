@@ -655,8 +655,13 @@ class QAEngine:
                 apply_corrections=True
             )
             
+            # Aplica normalização e/ou correção
             if dkr_result.was_corrected:
                 logger.info(f"DKR corrigiu resposta: {dkr_result.correction_reason}")
+                answer = dkr_result.final_answer
+            elif dkr_result.was_normalized:
+                # Mesmo sem correção de regra, aplica normalizações de termos
+                logger.info(f"DKR normalizou termos: {len(dkr_result.normalizations_applied)}")
                 answer = dkr_result.final_answer
             
         elif is_criticality_q:

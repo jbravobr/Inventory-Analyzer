@@ -24,6 +24,7 @@ from .models import (
     ValidationRule,
     QueryExpansion,
     Synonym,
+    TermNormalization,
     CompiledRules,
     DKRResult,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "ValidationRule",
     "QueryExpansion",
     "Synonym",
+    "TermNormalization",
     "CompiledRules",
     "DKRResult",
     # Core

@@ -251,6 +251,12 @@ Exemplos:
             print(f"🔍 Query expandida: Sim")
             print(f"   Termos: {result.expansion_terms}")
         
+        # Normalização
+        if result.was_normalized:
+            print(f"🔧 Termos normalizados: Sim")
+            for norm in result.normalizations_applied:
+                print(f"   • {norm}")
+        
         # Regras
         print(f"📋 Regras avaliadas: {result.rules_evaluated}")
         
@@ -307,6 +313,18 @@ Exemplos:
             print(f"║     • {rule.name}: {action}{' ' * (42 - len(rule.name) - len(action))}║")
         if len(rules.validation_rules) > 5:
             print(f"║     ... e mais {len(rules.validation_rules) - 5}{' ' * (39 - len(str(len(rules.validation_rules) - 5)))}║")
+        
+        print(f"╠{'═' * 58}╣")
+        
+        # Normalizações
+        print(f"║  🔧 NORMALIZAÇÕES: {len(rules.normalizations)}{' ' * (37 - len(str(len(rules.normalizations))))}║")
+        for norm in rules.normalizations[:3]:
+            desc = f'"{norm.original}" → "{norm.normalized}"'
+            if len(desc) > 46:
+                desc = desc[:43] + "..."
+            print(f"║     • {desc}{' ' * (49 - len(desc))}║")
+        if len(rules.normalizations) > 3:
+            print(f"║     ... e mais {len(rules.normalizations) - 3}{' ' * (39 - len(str(len(rules.normalizations) - 3)))}║")
         
         print(f"╠{'═' * 58}╣")
         

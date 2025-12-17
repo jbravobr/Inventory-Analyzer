@@ -302,6 +302,7 @@ class DKREPL(cmd.Cmd):
         self._print(f"   • Fatos: {sum(len(f) for f in rules.facts.values())}")
         self._print(f"   • Intents: {len(rules.intents)}")
         self._print(f"   • Regras: {len(rules.validation_rules)}")
+        self._print(f"   • Normalizações: {len(rules.normalizations)}")
         self._print(f"   • Sinônimos: {len(rules.synonyms)}")
     
     def do_validate(self, arg: str) -> None:

@@ -1053,6 +1053,12 @@ def _print_dkr_trace(dkr_result):
         console.print(f"  Query expandida: [green]Sim[/green]")
         console.print(f"    Termos: {dkr_result.expansion_terms}")
     
+    # Normalização de termos
+    if dkr_result.was_normalized:
+        console.print(f"  Termos normalizados: [green]Sim[/green]")
+        for norm in dkr_result.normalizations_applied:
+            console.print(f"    [green]•[/green] {norm}")
+    
     # Regras
     console.print(f"  Regras avaliadas: {dkr_result.rules_evaluated}")
     

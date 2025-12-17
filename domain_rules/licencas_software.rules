@@ -93,6 +93,39 @@ Para "criticidade_baixa", adicionar: "GRAU DE CRITICIDADE", "BAIXO", "permissiva
 Para "compatibilidade", adicionar: "COMPATIBILIDADE ENTRE", "compatível", "incompatível"
 
 ─────────────────────────────────────────────────────────────
+NORMALIZAR TERMOS:
+─────────────────────────────────────────────────────────────
+
+# Correções de siglas inexistentes (alucinações comuns do LLM)
+"GPLA" corrigir para: "GPL"
+"AGPLA" corrigir para: "AGPL"
+"LPGL" corrigir para: "LGPL"
+"APGL" corrigir para: "AGPL"
+"MIIT" corrigir para: "MIT"
+"IVHT" corrigir para: "MIT"
+
+# Normalização de versões para formato padrão
+"GPLv2" corrigir para: "GPL-2.0"
+"GPLv3" corrigir para: "GPL-3.0"
+"GPL v2" corrigir para: "GPL-2.0"
+"GPL v3" corrigir para: "GPL-3.0"
+"GPL 2.0" corrigir para: "GPL-2.0"
+"GPL 3.0" corrigir para: "GPL-3.0"
+"GPL2" corrigir para: "GPL-2.0"
+"GPL3" corrigir para: "GPL-3.0"
+
+# Variações de AGPL
+"AGPLv3" corrigir para: "AGPL-3.0"
+"AGPL v3" corrigir para: "AGPL-3.0"
+"AGPL 3" corrigir para: "AGPL-3.0"
+
+# Variações de LGPL
+"LGPLv2" corrigir para: "LGPL-2.0"
+"LGPLv3" corrigir para: "LGPL-3.0"
+"LGPL v2" corrigir para: "LGPL-2.0"
+"LGPL v3" corrigir para: "LGPL-3.0"
+
+─────────────────────────────────────────────────────────────
 REGRAS DE VALIDAÇÃO:
 ─────────────────────────────────────────────────────────────
 
@@ -180,6 +213,52 @@ ENTÃO corrigir para:
   • Evitar AGPL-3.0-only por ter obrigações mesmo sem distribuição (SaaS)
   • Ter cuidado com GPL-2.0-only (MÉDIO) devido à baixa compatibilidade
   • Licenças como Apache 2.0, MIT e BSD são seguras (BAIXO) e podem ser usadas
+  
+  (Resposta validada pelo sistema de regras de domínio)
+
+# Regra 6: Corrige quando LLM menciona GPLA (sigla inexistente) - backup caso normalização falhe
+QUANDO usuário pergunta "GPL"
+  E resposta menciona "GPLA"
+ENTÃO corrigir para:
+  **Nota:** A sigla correta é **GPL** (GNU General Public License), não "GPLA".
+  
+  **Sobre as versões da GPL:**
+  
+  • **GPL-2.0** (versão 2): Copyleft forte, baixa compatibilidade entre versões.
+    Criticidade: MÉDIO. Usar com cuidado.
+  
+  • **GPL-3.0** (versão 3): Versão mais recente com melhor compatibilidade.
+    Tem cláusulas sobre patentes e dispositivos bloqueados (tivoização).
+    Criticidade: BAIXO (quando "or-later"). Mais flexível.
+  
+  A principal diferença é que a GPL-3.0 oferece melhor proteção contra
+  restrições de hardware e patentes, além de maior compatibilidade com
+  outras licenças open source.
+  
+  (Resposta corrigida pelo sistema de regras de domínio)
+
+# Regra 7: Corrige quando pergunta sobre diferença entre versões GPL
+QUANDO usuário pergunta "diferença"
+  E resposta menciona "GPL"
+  E resposta NÃO menciona "compatibilidade"
+ENTÃO corrigir para:
+  **Principais diferenças entre GPL-2.0 e GPL-3.0:**
+  
+  | Aspecto | GPL-2.0 | GPL-3.0 |
+  |---------|---------|---------|
+  | Criticidade | MÉDIO | BAIXO (or-later) |
+  | Compatibilidade | Baixa | Alta |
+  | Cláusula de patentes | Não | Sim |
+  | Anti-tivoização | Não | Sim |
+  
+  **GPL-2.0-only**: Copyleft forte com baixa compatibilidade entre versões.
+  Requer cuidado ao combinar com outras licenças.
+  
+  **GPL-3.0-or-later**: Versão mais moderna com proteções adicionais
+  contra restrições de hardware e patentes. Mais compatível com outras
+  licenças open source como Apache 2.0.
+  
+  **Recomendação**: Preferir versões "or-later" quando possível.
   
   (Resposta validada pelo sistema de regras de domínio)
 

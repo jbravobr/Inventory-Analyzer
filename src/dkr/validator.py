@@ -86,6 +86,7 @@ class ValidationReport:
                 f"║     • Fatos: {facts_count:<42}  ║",
                 f"║     • Intents: {len(self.rules.intents):<40}  ║",
                 f"║     • Regras: {len(self.rules.validation_rules):<41}  ║",
+                f"║     • Normalizações: {len(self.rules.normalizations):<34}  ║",
                 f"║     • Sinônimos: {len(self.rules.synonyms):<38}  ║",
             ])
             lines.append("╠" + "═" * 60 + "╣")
