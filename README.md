@@ -1646,11 +1646,61 @@ Aumente o `dpi` no config.yaml para melhor qualidade de OCR.
 
 | Componente | Tamanho |
 |------------|---------|
-| Wheels (Python) | ~300 MB |
-| Modelos ML | ~1.8 GB |
-| **Total** | **~2.1 GB** |
+| Wheels (Python) | ~315 MB |
+| llama-cpp-python (wheel) | ~7 MB |
+| Modelos embeddings | ~440 MB |
+| TinyLlama GGUF | ~670 MB |
+| Llama 3.1 8B GGUF (opcional) | ~4.7 GB |
+| **Total (sem Llama 3.1)** | **~1.4 GB** |
+| **Total (com Llama 3.1)** | **~6.1 GB** |
 
-> Nota: Poppler não é mais necessário - o PyMuPDF (wheel puro) substituiu a dependência.
+> Nota: PyMuPDF (wheel puro) eliminou dependência do Poppler.
+
+## 🏢 Ambiente Corporativo Restrito
+
+Este aplicativo foi projetado para funcionar **100% offline** em ambientes corporativos com restrições:
+
+### Requisitos Atendidos
+
+| Restrição | Status | Solução |
+|-----------|--------|---------|
+| Sem internet | ✅ | Todos os pacotes inclusos em `wheels/` |
+| Sem scripts .ps1 | ✅ | Alternativas `.cmd` disponíveis |
+| Sem compilador C++ | ✅ | Wheel pré-compilado `llama_cpp_python*.whl` incluso |
+| Proxy restritivo | ✅ | Modo OFFLINE bloqueia conexões de rede |
+| Auditoria de código | ✅ | Todo código-fonte disponível, sem dependências de rede |
+
+### Instalação em Ambiente Restrito
+
+```cmd
+REM Usar APENAS scripts .cmd (não requer PowerShell)
+install_offline.cmd
+
+REM Ativar ambiente
+call venv\Scripts\activate.bat
+
+REM Verificar modelos disponíveis
+python run.py models --check
+```
+
+### Modelos Disponíveis Offline
+
+| Modelo | Tamanho | Qualidade PT-BR | Status |
+|--------|---------|-----------------|--------|
+| Llama 3.1 8B | 4.7 GB | ⭐⭐⭐⭐⭐ Excelente | Incluso (se baixado) |
+| TinyLlama 1.1B | 670 MB | ⭐⭐⭐ Boa | Incluso |
+| GPT-2 Portuguese | 500 MB | ⭐⭐ Básica | Incluso (fallback) |
+
+### Fallback Automático
+
+O sistema seleciona automaticamente o melhor modelo disponível:
+```
+Llama 3.1 8B → TinyLlama → GPT-2 Portuguese
+```
+
+Se nenhum modelo GGUF estiver disponível, usa GPT-2 Portuguese automaticamente.
+
+---
 
 ## ⚠️ Limitações
 

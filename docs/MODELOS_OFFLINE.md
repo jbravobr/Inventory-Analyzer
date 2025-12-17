@@ -260,16 +260,23 @@ pip install llama-cpp-python
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
 ```
 
-### Instalacao Offline
+### Instalacao Offline (Ambiente Corporativo)
 
-Se voce esta em ambiente corporativo sem internet:
+O wheel pré-compilado **já está incluso** no repositório:
 
-1. Baixe o wheel apropriado de: https://github.com/abetlen/llama-cpp-python/releases
-2. Coloque na pasta `wheels/`
-3. Execute:
-   ```bash
-   pip install wheels/llama_cpp_python-*.whl
-   ```
+```
+wheels/llama_cpp_python-0.3.16-cp314-cp314-win_amd64.whl
+```
+
+A instalação offline (`install_offline.cmd`) automaticamente:
+1. ✅ Instala o wheel pré-compilado (sem necessidade de compilador)
+2. ✅ Habilita TinyLlama e Llama 3.1 8B
+3. ✅ Funciona em ambientes sem Visual Studio Build Tools
+
+**Não é necessário nenhum passo adicional!**
+
+Se precisar de outra versão do Python, baixe o wheel apropriado de:
+https://github.com/abetlen/llama-cpp-python/releases
 
 ---
 
