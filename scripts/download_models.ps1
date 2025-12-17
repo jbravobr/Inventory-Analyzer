@@ -31,19 +31,29 @@ Write-Host "====================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Llama 3.1 8B (RECOMENDADO para portugues)
+# Usa GitHub Releases para compatibilidade com proxies corporativos
 if ($Model -eq "all" -or $Model -eq "llama3") {
     $llama3File = "$modelsDir\Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
     if (Test-Path $llama3File) {
         Write-Host "[OK] Llama 3.1 8B ja esta presente" -ForegroundColor Green
     } else {
         Write-Host "[>>] Baixando Llama 3.1 8B (~4.7 GB) - MELHOR para Portugues..." -ForegroundColor Yellow
-        Write-Host "     Isso pode levar varios minutos..." -ForegroundColor Gray
-        $llama3Url = "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-        try {
-            Invoke-WebRequest -Uri $llama3Url -OutFile $llama3File -UseBasicParsing
-            Write-Host "[OK] Llama 3.1 8B baixado com sucesso!" -ForegroundColor Green
-        } catch {
-            Write-Host "[ERRO] Falha ao baixar Llama 3.1 8B: $_" -ForegroundColor Red
+        Write-Host "     Fonte: GitHub Releases (compativel com proxy corporativo)" -ForegroundColor Gray
+        Write-Host ""
+        # Chama o script dedicado que baixa do GitHub Releases
+        $scriptPath = Join-Path $PSScriptRoot "download_llama3_github.ps1"
+        if (Test-Path $scriptPath) {
+            & $scriptPath
+        } else {
+            Write-Host "[AVISO] Script download_llama3_github.ps1 nao encontrado" -ForegroundColor Yellow
+            Write-Host "        Tentando baixar do HuggingFace..." -ForegroundColor Yellow
+            $llama3Url = "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+            try {
+                Invoke-WebRequest -Uri $llama3Url -OutFile $llama3File -UseBasicParsing
+                Write-Host "[OK] Llama 3.1 8B baixado com sucesso!" -ForegroundColor Green
+            } catch {
+                Write-Host "[ERRO] Falha ao baixar Llama 3.1 8B: $_" -ForegroundColor Red
+            }
         }
     }
 }

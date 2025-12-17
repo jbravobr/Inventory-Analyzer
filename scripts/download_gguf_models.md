@@ -4,6 +4,8 @@ Este documento explica como baixar os modelos GGUF para uso offline em ambientes
 
 > **NOTA**: O wheel do `llama-cpp-python` já está incluso na pasta `wheels/` e será instalado automaticamente durante a instalação offline. Não é mais necessário compilar ou baixar separadamente.
 
+> **🏢 AMBIENTE CORPORATIVO**: O modelo Llama 3.1 8B está disponível via **GitHub Releases** do repositório, compatível com proxies corporativos que confiam no GitHub. Os scripts de download usam automaticamente essa fonte.
+
 ## Tabela de Modelos Disponíveis
 
 | Modelo | Tamanho | RAM | Qualidade PT-BR | Recomendação |
@@ -55,13 +57,36 @@ scripts\download_models.cmd mistral
 O Llama 3.1 8B possui excelente suporte ao português brasileiro e é recomendado
 para obter respostas de alta qualidade.
 
-### Opção A: Download direto do HuggingFace
+### Opção A: Via GitHub Releases (RECOMENDADO para ambiente corporativo)
+
+O modelo está disponível no GitHub Releases do repositório, dividido em partes
+para contornar o limite de 2GB do GitHub. Os scripts baixam e juntam automaticamente.
+
+**PowerShell:**
+```powershell
+.\scripts\download_llama3_github.ps1
+```
+
+**Prompt de Comando (CMD):**
+```batch
+scripts\download_llama3_github.cmd
+```
+
+**Vantagens:**
+- ✅ Compatível com proxies corporativos que confiam no GitHub
+- ✅ Baixa em partes (evita timeout em conexões lentas)
+- ✅ Verificação de integridade SHA256
+- ✅ Junta automaticamente as partes
+
+### Opção B: Download direto do HuggingFace
+
+Se o proxy permitir acesso ao HuggingFace:
 
 1. Acesse: https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
 2. Baixe o arquivo: `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf` (~4.7 GB)
 3. Coloque em: `models/generator/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf`
 
-### Opção B: Via PowerShell/curl
+### Opção C: Via PowerShell/curl (HuggingFace)
 
 ```powershell
 # Windows (PowerShell)

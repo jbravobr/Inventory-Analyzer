@@ -44,6 +44,7 @@ set "PHI3_URL=https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resol
 set "PHI3_FILE=Phi-3-mini-4k-instruct-q4.gguf"
 
 REM Llama 3.1 8B (RECOMENDADO)
+REM Usa GitHub Releases para compatibilidade com proxies corporativos
 if "%MODEL%"=="all" goto :download_llama3
 if "%MODEL%"=="llama3" goto :download_llama3
 goto :skip_llama3
@@ -53,14 +54,21 @@ if exist "%MODELS_DIR%\%LLAMA3_FILE%" (
     echo [OK] Llama 3.1 8B ja esta presente
 ) else (
     echo [^>^>] Baixando Llama 3.1 8B (~4.7 GB^) - MELHOR para Portugues...
-    echo     Isso pode levar varios minutos...
+    echo     Fonte: GitHub Releases (compativel com proxy corporativo^)
     echo.
-    curl -L -o "%MODELS_DIR%\%LLAMA3_FILE%" "%LLAMA3_URL%"
-    if errorlevel 1 (
-        echo [ERRO] Falha ao baixar Llama 3.1 8B
-        del "%MODELS_DIR%\%LLAMA3_FILE%" 2>nul
+    REM Chama o script dedicado que baixa do GitHub Releases
+    if exist "%~dp0download_llama3_github.cmd" (
+        call "%~dp0download_llama3_github.cmd"
     ) else (
-        echo [OK] Llama 3.1 8B baixado com sucesso!
+        echo [AVISO] Script download_llama3_github.cmd nao encontrado
+        echo         Tentando baixar do HuggingFace...
+        curl -L -o "%MODELS_DIR%\%LLAMA3_FILE%" "%LLAMA3_URL%"
+        if errorlevel 1 (
+            echo [ERRO] Falha ao baixar Llama 3.1 8B
+            del "%MODELS_DIR%\%LLAMA3_FILE%" 2>nul
+        ) else (
+            echo [OK] Llama 3.1 8B baixado com sucesso!
+        )
     )
 )
 :skip_llama3
