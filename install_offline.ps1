@@ -59,8 +59,7 @@ $installed = pip list --format=freeze | Measure-Object -Line
 Write-Host "  ✓ $($installed.Lines) pacotes instalados" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[5/6] Tentando instalar llama-cpp-python (opcional)..." -ForegroundColor Yellow
-Write-Host "  Se falhar, o sistema usará GPT-2 Portuguese (fallback)" -ForegroundColor DarkGray
+Write-Host "[5/6] Instalando llama-cpp-python..." -ForegroundColor Yellow
 
 # Verifica se llama_cpp já está instalado
 $llamaInstalled = $false
@@ -72,33 +71,19 @@ try {
 } catch {}
 
 if (-not $llamaInstalled) {
-    # Prioridade 1: Wheel pré-compilado (não requer compilador)
     $wheelFile = Get-ChildItem "wheels\llama_cpp_python*.whl" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($wheelFile) {
-        Write-Host "  → Instalando llama-cpp-python pré-compilado..."
+        Write-Host "  → Instalando $($wheelFile.Name)..."
         pip install $wheelFile.FullName --no-index --no-deps --quiet 2>$null
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  ✓ llama-cpp-python instalado! TinyLlama e Llama 3.1 disponíveis." -ForegroundColor Green
             $llamaInstalled = $true
+        } else {
+            Write-Host "  ⚠ Erro ao instalar llama-cpp-python" -ForegroundColor Yellow
         }
-    }
-    
-    # Prioridade 2: Compilar do source (requer Visual Studio Build Tools)
-    if (-not $llamaInstalled) {
-        $sourceFile = Get-ChildItem "wheels\llama_cpp_python*.tar.gz" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($sourceFile) {
-            Write-Host "  → Tentando compilar llama-cpp-python (requer Visual Studio Build Tools)..."
-            pip install $sourceFile.FullName --no-index --quiet 2>$null
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "  ✓ llama-cpp-python compilado! TinyLlama e Llama 3.1 disponíveis." -ForegroundColor Green
-                $llamaInstalled = $true
-            }
-        }
-    }
-    
-    if (-not $llamaInstalled) {
-        Write-Host "  ⚠ llama-cpp-python não instalado - usando GPT-2 Portuguese como fallback" -ForegroundColor Yellow
-        Write-Host "    Para modelos GGUF, copie o wheel pré-compilado para wheels\" -ForegroundColor DarkYellow
+    } else {
+        Write-Host "  ⚠ Wheel llama-cpp-python não encontrado na pasta wheels\" -ForegroundColor Yellow
+        Write-Host "    Modelos GGUF não estarão disponíveis." -ForegroundColor DarkYellow
     }
 } else {
     Write-Host "  ✓ llama-cpp-python já instalado - TinyLlama e Llama 3.1 disponíveis" -ForegroundColor Green
