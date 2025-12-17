@@ -280,7 +280,8 @@ Se voce esta em ambiente corporativo sem internet:
 ```yaml
 rag:
   generation:
-    default_model: "tinyllama"  # Modelo padrao
+    default_model: "llama3-8b"  # MELHOR para PT-BR (fallback automatico)
+    # Ordem de fallback: llama3-8b -> mistral-7b -> tinyllama -> gpt2-portuguese
 ```
 
 ### Via CLI

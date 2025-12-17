@@ -69,8 +69,15 @@ if /i "%DEFAULT_MODE%"=="offline" (
 )
 
 REM ============================================
-REM Verifica status do TinyLlama
+REM Verifica status dos modelos
 REM ============================================
+set "LLAMA3_STATUS=[X] Llama-3.1-8B - Nao encontrado (recomendado PT-BR)"
+set "LLAMA3_COLOR=[93m"
+if exist "%SCRIPT_DIR%models\generator\Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf" (
+    set "LLAMA3_STATUS=[!] Llama-3.1-8B - Modelo OK, llama-cpp-python pendente"
+    set "LLAMA3_COLOR=[93m"
+)
+
 set "TINYLLAMA_STATUS=[X] TinyLlama - Nao encontrado"
 set "TINYLLAMA_COLOR=[91m"
 if exist "%SCRIPT_DIR%models\generator\tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf" (
@@ -90,8 +97,10 @@ echo Modo de operacao: %MODE_COLOR%%MODE_TEXT%[0m
 echo.
 
 echo [95mStatus dos Modelos:[0m
+echo   %LLAMA3_COLOR%%LLAMA3_STATUS%[0m
 echo   %TINYLLAMA_COLOR%%TINYLLAMA_STATUS%[0m
 echo   [92m[OK] GPT-2 Portuguese (fallback) - Sempre disponivel[0m
+echo   [93mDownload Llama 3.1: scripts\download_models.ps1 -Model llama3[0m
 echo.
 
 echo [95mPerfis de Analise:[0m
@@ -125,7 +134,8 @@ echo.
 
 echo [96mOpcoes do Q^&A:[0m
 echo   --template ^<nome^>     - Usar template especifico
-echo   --model ^<nome^>        - Usar modelo especifico (tinyllama, gpt2-portuguese)
+echo   --model ^<nome^>        - Usar modelo especifico:
+echo                           llama3-8b (MELHOR PT-BR), mistral-7b, tinyllama, gpt2-portuguese
 echo   --explain             - Mostrar trace das regras DKR aplicadas
 echo   --no-dkr              - Desabilitar regras de dominio
 echo   --save-txt ^<arquivo^>  - Salvar resposta em arquivo TXT
@@ -143,8 +153,8 @@ echo   python run.py qa documento.pdf -i --template licencas_software
 echo   python run.py qa licencas.pdf -q "Qual a licenca mais critica?" --explain
 echo.
 
-echo [93mPara ativar TinyLlama (melhor qualidade):[0m
-echo   scripts\install_llama_cpp.cmd       (Prompt de Comando)
-echo   .\scripts\install_llama_cpp.ps1     (PowerShell)
-echo   python run.py models --check
+echo [93mPara usar modelos GGUF (Llama 3.1, Mistral, TinyLlama):[0m
+echo   1. Instalar llama-cpp-python: scripts\install_llama_cpp.cmd
+echo   2. Baixar modelo: scripts\download_models.ps1 -Model llama3
+echo   3. Verificar: python run.py models --check
 echo.

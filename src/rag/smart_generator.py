@@ -124,10 +124,12 @@ class SmartGenerator(ResponseGenerator):
     """
     Gerador inteligente que seleciona automaticamente o melhor modelo.
     
-    Prioridade:
-    1. TinyLlama GGUF (melhor qualidade offline)
-    2. Phi-3 Mini GGUF (se disponivel)
-    3. GPT-2 Portuguese (fallback garantido)
+    Prioridade de fallback automatico:
+    1. Llama 3.1 8B (MELHOR para portugues)
+    2. Mistral 7B (alternativa de qualidade)
+    3. Phi-3 Mini (se disponivel)
+    4. TinyLlama (para recursos limitados)
+    5. GPT-2 Portuguese (fallback garantido)
     """
     
     def __init__(

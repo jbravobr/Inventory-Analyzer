@@ -85,7 +85,7 @@ class QAConfig:
     # Geracao
     generate_answers: bool = True
     include_page_references: bool = True
-    generation_model: Optional[str] = None  # tinyllama, phi3-mini, gpt2-portuguese
+    generation_model: Optional[str] = None  # llama3-8b, mistral-7b, tinyllama, gpt2-portuguese
     
     # DKR (Domain Knowledge Rules)
     use_dkr: bool = True  # Usa DKR se disponível
@@ -977,7 +977,7 @@ class QAEngine:
         Define o modelo de geração a usar.
         
         Args:
-            model_name: Nome do modelo (tinyllama, phi3-mini, gpt2-portuguese)
+            model_name: Nome do modelo (llama3-8b, mistral-7b, tinyllama, gpt2-portuguese)
         
         Returns:
             str: Nome do modelo configurado

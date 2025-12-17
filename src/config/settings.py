@@ -190,7 +190,9 @@ class RAGGenerationConfig:
     temperature: float = 0.1
     
     # Modelo padrao (novo sistema GGUF)
-    default_model: str = "tinyllama"  # tinyllama | phi3-mini | gpt2-portuguese
+    # Opcoes: llama3-8b (melhor PT-BR), mistral-7b, tinyllama (recursos limitados), gpt2-portuguese (fallback)
+    # Fallback automatico: se llama3-8b nao disponivel -> mistral-7b -> tinyllama -> gpt2-portuguese
+    default_model: str = "llama3-8b"  # MELHOR para portugues; fallback automatico se nao disponivel
     
     # Configuracoes de modelos (dict para flexibilidade)
     models: Dict[str, Any] = field(default_factory=dict)

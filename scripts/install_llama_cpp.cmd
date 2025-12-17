@@ -4,7 +4,7 @@ REM Script de Instalacao do llama-cpp-python
 REM ============================================
 REM
 REM Este script instala o llama-cpp-python que e necessario
-REM para usar modelos GGUF como TinyLlama.
+REM para usar modelos GGUF como Llama 3.1, Mistral e TinyLlama.
 REM
 REM IMPORTANTE: Requer compilador C++ instalado (Visual Studio Build Tools)
 REM
@@ -101,8 +101,14 @@ echo ==============================================
 echo   Instalacao Concluida!
 echo ==============================================
 echo.
-echo Agora voce pode usar o TinyLlama:
-echo   python run.py qa documento.pdf -q "pergunta" --model tinyllama
+echo Agora voce pode usar modelos GGUF:
+echo.
+echo   Llama 3.1 8B (RECOMENDADO para portugues):
+echo     1. Baixar: scripts\download_models.ps1 -Model llama3
+echo     2. Usar:   python run.py qa documento.pdf -q "pergunta" --model llama3-8b
+echo.
+echo   TinyLlama (recursos limitados):
+echo     python run.py qa documento.pdf -q "pergunta" --model tinyllama
 echo.
 echo Verificar status dos modelos:
 echo   python run.py models --check

@@ -164,11 +164,11 @@ rag:
     temperature: 0.1
     
     # ============================================
-    # Modelo Padrao (TinyLlama GGUF - RECOMENDADO)
+    # Modelo Padrao (Llama 3.1 8B - MELHOR para PT-BR)
     # ============================================
-    # TinyLlama oferece melhor qualidade que GPT-2 Portuguese
-    # com consumo de recursos similar
-    default_model: "tinyllama"  # tinyllama | phi3-mini | gpt2-portuguese
+    # Llama 3.1 8B oferece a melhor qualidade para portugues brasileiro
+    # Fallback automatico: llama3-8b -> mistral-7b -> tinyllama -> gpt2-portuguese
+    default_model: "llama3-8b"  # llama3-8b | mistral-7b | tinyllama | gpt2-portuguese
     
     # ============================================
     # Modelos Disponiveis

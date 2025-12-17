@@ -137,7 +137,7 @@ Em `config.yaml`:
 ```yaml
 rag:
   generation:
-    default_model: "tinyllama"
+    default_model: "llama3-8b"  # MELHOR para PT-BR (fallback automatico se nao disponivel)
 ```
 
 > Veja [MODELOS_OFFLINE.md](MODELOS_OFFLINE.md) para instrucoes de instalacao.

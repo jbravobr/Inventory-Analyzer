@@ -2,7 +2,7 @@
 # ==========================================
 # 
 # Este script instala o llama-cpp-python que e necessario
-# para usar modelos GGUF como TinyLlama.
+# para usar modelos GGUF como Llama 3.1, Mistral e TinyLlama.
 #
 # IMPORTANTE: Requer compilador C++ instalado (Visual Studio Build Tools)
 #
@@ -57,8 +57,14 @@ if ($LASTEXITCODE -eq 0) {
     python -c "import llama_cpp; print('llama-cpp-python versao:', llama_cpp.__version__)"
     
     Write-Host ""
-    Write-Host "Agora voce pode usar o TinyLlama:"
-    Write-Host "  python run.py qa documento.pdf -q 'pergunta' --model tinyllama"
+    Write-Host "Agora voce pode usar modelos GGUF:"
+    Write-Host ""
+    Write-Host "  Llama 3.1 8B (RECOMENDADO para portugues):" -ForegroundColor Cyan
+    Write-Host "    1. Baixar: .\scripts\download_models.ps1 -Model llama3"
+    Write-Host "    2. Usar:   python run.py qa documento.pdf -q 'pergunta' --model llama3-8b"
+    Write-Host ""
+    Write-Host "  TinyLlama (recursos limitados):" -ForegroundColor Yellow
+    Write-Host "    python run.py qa documento.pdf -q 'pergunta' --model tinyllama"
 } else {
     Write-Host ""
     Write-Host "[ERRO] Falha na instalacao!" -ForegroundColor Red

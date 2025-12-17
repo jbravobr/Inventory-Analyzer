@@ -67,8 +67,11 @@ else {
 }
 
 # ============================================
-# Verifica status do TinyLlama
+# Verifica status dos modelos
 # ============================================
+$llama3Path = "$SCRIPT_DIR\models\generator\Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+$llama3Exists = Test-Path $llama3Path
+
 $tinyLlamaPath = "$SCRIPT_DIR\models\generator\tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
 $tinyLlamaExists = Test-Path $tinyLlamaPath
 
@@ -95,15 +98,31 @@ Write-Host ""
 
 # Status dos modelos
 Write-Host "Status dos Modelos:" -ForegroundColor Magenta
+
+# Llama 3.1 8B (recomendado para PT-BR)
+if ($llama3Exists -and $llamaCppInstalled) {
+    Write-Host "  [OK] Llama-3.1-8B (GGUF) - ATIVO (RECOMENDADO para PT-BR)" -ForegroundColor Green
+} elseif ($llama3Exists) {
+    Write-Host "  [!] Llama-3.1-8B - Modelo OK, llama-cpp-python pendente" -ForegroundColor Yellow
+} else {
+    Write-Host "  [X] Llama-3.1-8B - Nao encontrado (recomendado para PT-BR)" -ForegroundColor DarkYellow
+    Write-Host "      Download: .\scripts\download_models.ps1 -Model llama3" -ForegroundColor DarkYellow
+}
+
+# TinyLlama (recursos limitados)
 if ($tinyLlamaExists -and $llamaCppInstalled) {
-    Write-Host "  [OK] TinyLlama-1.1B (GGUF) - Ativo" -ForegroundColor Green
+    Write-Host "  [OK] TinyLlama-1.1B (GGUF) - Ativo (recursos limitados)" -ForegroundColor Green
 } elseif ($tinyLlamaExists) {
     Write-Host "  [!] TinyLlama-1.1B - Modelo OK, llama-cpp-python pendente" -ForegroundColor Yellow
-    Write-Host "      PowerShell: .\scripts\install_llama_cpp.ps1" -ForegroundColor DarkYellow
-    Write-Host "      CMD:        scripts\install_llama_cpp.cmd" -ForegroundColor DarkYellow
 } else {
     Write-Host "  [X] TinyLlama-1.1B - Nao encontrado" -ForegroundColor Red
 }
+
+# llama-cpp-python status
+if (-not $llamaCppInstalled) {
+    Write-Host "      Para ativar GGUF: .\scripts\install_llama_cpp.ps1" -ForegroundColor DarkYellow
+}
+
 Write-Host "  [OK] GPT-2 Portuguese (fallback) - Sempre disponivel" -ForegroundColor Green
 Write-Host ""
 
@@ -138,7 +157,8 @@ Write-Host ""
 
 Write-Host "Opcoes do Q&A:" -ForegroundColor Cyan
 Write-Host "  --template <nome>     - Usar template especifico" -ForegroundColor White
-Write-Host "  --model <nome>        - Usar modelo especifico (tinyllama, gpt2-portuguese)" -ForegroundColor White
+Write-Host "  --model <nome>        - Usar modelo especifico:" -ForegroundColor White
+Write-Host "                          llama3-8b (MELHOR PT-BR), mistral-7b, tinyllama, gpt2-portuguese" -ForegroundColor DarkGray
 Write-Host "  --explain             - Mostrar trace das regras DKR aplicadas" -ForegroundColor White
 Write-Host "  --no-dkr              - Desabilitar regras de dominio" -ForegroundColor White
 Write-Host "  --save-txt <arquivo>  - Salvar resposta em arquivo TXT" -ForegroundColor White

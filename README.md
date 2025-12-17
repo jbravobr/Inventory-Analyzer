@@ -221,13 +221,16 @@ python run.py qa documento.pdf -q "Qual o valor total?" --save-txt resposta.txt
 ### Usar Modelo Especifico
 
 ```powershell
-# TinyLlama (padrao, recomendado)
+# Llama 3.1 8B (RECOMENDADO para portugues)
+python run.py qa documento.pdf -q "pergunta" --model llama3-8b
+
+# Mistral 7B (alternativa de qualidade)
+python run.py qa documento.pdf -q "pergunta" --model mistral-7b
+
+# TinyLlama (para recursos limitados, ~2 GB RAM)
 python run.py qa documento.pdf -q "pergunta" --model tinyllama
 
-# Phi-3 Mini (melhor qualidade)
-python run.py qa documento.pdf -q "pergunta" --model phi3-mini
-
-# GPT-2 Portuguese (fallback)
+# GPT-2 Portuguese (fallback, sempre disponivel)
 python run.py qa documento.pdf -q "pergunta" --model gpt2-portuguese
 ```
 
@@ -414,9 +417,9 @@ python run.py models --check
 python run.py models --list
 
 # Usar modelo especifico no Q&A
-python run.py qa doc.pdf -q "pergunta" --model tinyllama
-python run.py qa doc.pdf -q "pergunta" --model phi3-mini
-python run.py qa doc.pdf -q "pergunta" --model mistral-7b
+python run.py qa doc.pdf -q "pergunta" --model llama3-8b   # MELHOR para PT-BR
+python run.py qa doc.pdf -q "pergunta" --model mistral-7b  # Alternativa
+python run.py qa doc.pdf -q "pergunta" --model tinyllama   # Recursos limitados
 ```
 
 > Para documentacao completa, veja [docs/MODELOS_OFFLINE.md](docs/MODELOS_OFFLINE.md)
